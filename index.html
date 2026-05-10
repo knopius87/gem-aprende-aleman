@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>GemDeutsch</title>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800;900&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ruby:#FF2D55;--sapphire:#0A84FF;--emerald:#30D158;
+  --amethyst:#BF5AF2;--topaz:#FFD60A;--diamond:#C8E6FF;
+  --coral:#FF6B35;--ice:#7DF9FF;
+  --void:#06060F;--deep:#0C0C1C;--panel:#141428;
+  --panel2:#1C1C35;--panel3:#242448;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);
+  --txt:#F0F0FF;--txt2:#8080AA;--txt3:#40405A;
+  --r:12px;--r2:20px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:"Exo 2",sans-serif;background:var(--void);color:var(--txt);min-height:100vh;overflow-x:hidden;}
+.screen{display:none;min-height:100vh;flex-direction:column;}
+.screen.active{display:flex;}
+
+/* ── ANIMATIONS ──────────────────────────────── */
+@keyframes gem-float{0%,100%{transform:translateY(0) rotate(0deg);}33%{transform:translateY(-8px) rotate(3deg);}66%{transform:translateY(-4px) rotate(-2deg);}}
+@keyframes gem-spin{0%{transform:rotateY(0deg) scale(1);}50%{transform:rotateY(180deg) scale(1.1);}100%{transform:rotateY(360deg) scale(1);}}
+@keyframes gem-pulse{0%,100%{filter:drop-shadow(0 0 4px currentColor);}50%{filter:drop-shadow(0 0 16px currentColor);}}
+@keyframes bounce-in{0%{transform:scale(0) rotate(-20deg);}60%{transform:scale(1.25) rotate(5deg);}80%{transform:scale(0.9) rotate(-2deg);}100%{transform:scale(1) rotate(0);}}
+@keyframes shake{0%,100%{transform:translateX(0);}20%,60%{transform:translateX(-7px);}40%,80%{transform:translateX(7px);}}
+@keyframes float-xp{0%{transform:translate(-50%,-50%);opacity:1;}100%{transform:translate(-50%,-140%);opacity:0;}}
+@keyframes shard-fly{0%{opacity:1;transform:scale(1);}100%{transform:translate(var(--tx),var(--ty)) rotate(var(--tr)) scale(0);opacity:0;}}
+@keyframes slide-up{from{transform:translateY(18px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+@keyframes slide-down{from{transform:translateY(-10px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+@keyframes bop{0%,80%,100%{transform:translateY(0);}40%{transform:translateY(-8px);}}
+@keyframes glow-ring{0%,100%{box-shadow:0 0 0 0 transparent;}50%{box-shadow:0 0 0 4px rgba(191,90,242,.3);}}
+@keyframes progress-fill{from{width:0}to{width:var(--target-w);}}
+@keyframes star-pop{0%{transform:scale(0) rotate(-30deg);opacity:0;}60%{transform:scale(1.3) rotate(10deg);opacity:1;}100%{transform:scale(1) rotate(0);opacity:1;}}
+
+/* ── GEM SVG SYSTEM ──────────────────────────── */
+.gem-svg{display:inline-block;filter:drop-shadow(0 0 6px currentColor);}
+.gem-svg.animate-pulse{animation:gem-pulse 2.5s infinite;}
+.gem-svg.animate-float{animation:gem-float 4s infinite ease-in-out;}
+.gem-svg.animate-spin{animation:gem-spin 0.6s ease-out;}
+
+/* ── FX LAYER ─────────────────────────────────── */
+#gem-fx{position:fixed;inset:0;pointer-events:none;z-index:500;}
+#confetti-canvas{position:fixed;inset:0;pointer-events:none;z-index:498;display:none;}
+
+/* ── BADGE TOAST ─────────────────────────────── */
+#badge-toast{
+  position:fixed;top:1rem;left:50%;
+  transform:translateX(-50%) translateY(-130px);
+  background:linear-gradient(135deg,var(--panel2),var(--panel3));
+  border:1.5px solid rgba(191,90,242,.55);
+  border-radius:var(--r2);padding:.75rem 1.2rem;
+  display:flex;align-items:center;gap:.75rem;
+  box-shadow:0 8px 32px rgba(191,90,242,.3),0 0 0 1px rgba(191,90,242,.1);
+  z-index:999;transition:transform .45s cubic-bezier(.34,1.56,.64,1);
+  pointer-events:none;max-width:300px;
+}
+#badge-toast.show{transform:translateX(-50%) translateY(0);}
+#badge-toast .bt-gem{width:36px;height:36px;flex-shrink:0;}
+#badge-toast .bt-title{font-size:.65rem;text-transform:uppercase;letter-spacing:.07em;color:var(--amethyst);font-weight:800;margin-bottom:.1rem;}
+#badge-toast .bt-name{font-size:.9rem;font-weight:800;color:var(--txt);}
+
+/* ── TOPBAR ──────────────────────────────────── */
+.topbar{background:rgba(6,6,15,.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding:.75rem 1.1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+.logo{font-family:"Cinzel",serif;font-size:1.3rem;background:linear-gradient(90deg,var(--topaz),var(--amethyst));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:flex;align-items:center;gap:.4rem;}
+.stats-row{display:flex;gap:.5rem;}
+.stat-pill{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:20px;padding:.22rem .7rem;font-size:.78rem;font-weight:800;display:flex;align-items:center;gap:.3rem;color:var(--topaz);}
+
+/* ── BOTNAV ──────────────────────────────────── */
+.botnav{position:fixed;bottom:0;left:0;right:0;background:rgba(6,6,15,.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom);}
+.nbtn{flex:1;display:flex;flex-direction:column;align-items:center;padding:.55rem .4rem;cursor:pointer;border:none;background:none;color:var(--txt3);font-size:.65rem;gap:.2rem;font-family:"Exo 2",sans-serif;font-weight:700;transition:color .15s;}
+.nbtn svg{width:20px;height:20px;stroke:currentColor;}
+.nbtn.active{color:var(--amethyst);}
+
+/* ══════════════════════════════════════════════
+   WELCOME SCREEN
+══════════════════════════════════════════════ */
+#screen-welcome{
+  background:radial-gradient(ellipse at 50% -10%,#1E0A3C 0%,var(--void) 65%);
+  align-items:center;justify-content:center;text-align:center;
+  padding:2rem;position:relative;overflow:hidden;min-height:100svh;
+}
+/* Star field */
+#screen-welcome::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(1px 1px at 15% 12%,rgba(255,255,255,.7) 0%,transparent 100%),
+    radial-gradient(1.5px 1.5px at 30% 6%,rgba(255,214,10,.6) 0%,transparent 100%),
+    radial-gradient(1px 1px at 55% 18%,rgba(255,255,255,.5) 0%,transparent 100%),
+    radial-gradient(1px 1px at 72% 8%,rgba(191,90,242,.7) 0%,transparent 100%),
+    radial-gradient(1.5px 1.5px at 85% 22%,rgba(255,255,255,.6) 0%,transparent 100%),
+    radial-gradient(1px 1px at 8%  35%,rgba(255,255,255,.4) 0%,transparent 100%),
+    radial-gradient(1px 1px at 92% 40%,rgba(255,214,10,.4) 0%,transparent 100%),
+    radial-gradient(1px 1px at 45% 3%, rgba(255,255,255,.5) 0%,transparent 100%),
+    radial-gradient(1px 1px at 68% 28%,rgba(10,132,255,.5) 0%,transparent 100%);}
+.w-inner{position:relative;z-index:1;max-width:380px;width:100%;}
+.w-gem-hero{margin:0 auto 1rem;display:flex;justify-content:center;animation:gem-float 5s infinite ease-in-out;}
+.w-sub{font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.18em;color:rgba(191,90,242,.7);margin-bottom:.3rem;}
+.w-title{font-family:"Cinzel",serif;font-size:clamp(2.4rem,9vw,3.4rem);background:linear-gradient(160deg,var(--topaz) 0%,var(--amethyst) 50%,var(--sapphire) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.05;margin-bottom:.4rem;}
+.w-tagline{font-size:.9rem;color:rgba(255,255,255,.5);line-height:1.8;margin-bottom:1.8rem;}
+.nic-wrap{display:flex;flex-direction:column;gap:.45rem;margin-bottom:.65rem;}
+.nic-wrap label{color:rgba(255,255,255,.45);font-size:.75rem;font-weight:800;text-align:left;text-transform:uppercase;letter-spacing:.07em;}
+.nic-wrap input{padding:.85rem 1.1rem;border-radius:var(--r);border:1.5px solid rgba(191,90,242,.3);background:rgba(191,90,242,.06);color:#fff;font-family:"Exo 2",sans-serif;font-size:1rem;font-weight:600;outline:none;transition:all .2s;}
+.nic-wrap input::placeholder{color:rgba(255,255,255,.18);}
+.nic-wrap input:focus{border-color:var(--amethyst);background:rgba(191,90,242,.09);box-shadow:0 0 0 3px rgba(191,90,242,.12);}
+.btn-gem{width:100%;padding:1rem;border:none;border-radius:var(--r);font-family:"Exo 2",sans-serif;font-size:1.05rem;font-weight:900;cursor:pointer;transition:all .15s;letter-spacing:.04em;background:linear-gradient(135deg,#8B35D6,var(--amethyst));color:#fff;box-shadow:0 4px 24px rgba(191,90,242,.45),0 0 0 1px rgba(191,90,242,.2) inset;}
+.btn-gem:hover{transform:translateY(-2px);box-shadow:0 6px 32px rgba(191,90,242,.6);}
+.btn-ghost{background:transparent;color:rgba(255,255,255,.28);border:none;font-size:.78rem;cursor:pointer;text-decoration:underline;padding:.4rem;margin-top:.25rem;font-family:"Exo 2",sans-serif;}
+.priv{font-size:.68rem;color:rgba(255,255,255,.18);margin-top:1rem;line-height:1.7;}
+
+/* ══════════════════════════════════════════════
+   ONBOARDING
+══════════════════════════════════════════════ */
+#screen-onboard{background:radial-gradient(ellipse at 50% 0%,#1A0A2E,var(--void));align-items:center;justify-content:center;padding:2rem;}
+.ob-slides{max-width:360px;width:100%;text-align:center;}
+.ob-slide{display:none;flex-direction:column;align-items:center;gap:1rem;}
+.ob-slide.active{display:flex;animation:slide-up .35s ease;}
+.ob-gem-wrap{animation:gem-float 4s infinite ease-in-out;margin-bottom:.3rem;}
+.ob-title{font-family:"Cinzel",serif;font-size:1.7rem;color:var(--topaz);}
+.ob-text{color:rgba(255,255,255,.6);font-size:.92rem;line-height:1.78;max-width:300px;}
+.ob-dots{display:flex;gap:.5rem;justify-content:center;margin:.35rem 0;}
+.ob-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.1);transition:all .3s;}
+.ob-dot.active{background:var(--amethyst);box-shadow:0 0 8px rgba(191,90,242,.5);}
+
+/* ══════════════════════════════════════════════
+   HOME
+══════════════════════════════════════════════ */
+#screen-home{background:var(--void);padding-bottom:5.5rem;}
+.home-body{padding:1rem;}
+.hello{font-size:1.2rem;font-weight:900;margin-bottom:.75rem;}
+.hello-name{background:linear-gradient(90deg,var(--topaz),var(--amethyst));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+
+/* Hero card — streak + goal */
+.hero-card{border-radius:var(--r2);padding:1.1rem 1.2rem;margin-bottom:.85rem;background:var(--panel);border:1.5px solid rgba(191,90,242,.2);position:relative;overflow:hidden;}
+.hero-card::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 90% 50%,rgba(191,90,242,.1),transparent 60%);pointer-events:none;}
+.hero-card::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 10% 90%,rgba(255,45,85,.06),transparent 50%);pointer-events:none;}
+.hero-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.75rem;position:relative;}
+.hero-left{}
+.hero-streak-row{display:flex;align-items:baseline;gap:.35rem;}
+.hero-num{font-family:"Cinzel",serif;font-size:3rem;line-height:1;background:linear-gradient(135deg,var(--topaz),var(--coral));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-unit{font-size:.8rem;color:rgba(255,255,255,.4);align-self:flex-end;padding-bottom:.3rem;}
+.hero-lbl{font-size:.7rem;color:rgba(255,255,255,.35);font-weight:600;margin-top:.1rem;}
+.hero-right{text-align:right;position:relative;z-index:1;}
+.hero-gem-mini{width:32px;height:32px;margin-left:auto;margin-bottom:.2rem;}
+.hero-goal-num{font-size:1.1rem;font-weight:900;color:var(--topaz);}
+.hero-goal-lbl{font-size:.68rem;color:rgba(255,255,255,.35);}
+.hero-bar-wrap{position:relative;}
+.hero-bar{height:7px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;margin-bottom:.3rem;}
+.hero-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--ruby),var(--topaz));transition:width .7s cubic-bezier(.34,1.56,.64,1);}
+.hero-msg{font-size:.7rem;color:rgba(255,255,255,.28);}
+
+/* WOTD */
+.wotd-card{background:var(--panel);border:1.5px solid rgba(255,255,255,.05);border-left:3px solid var(--topaz);border-radius:0 var(--r2) var(--r2) 0;padding:.88rem 1rem;margin-bottom:.85rem;cursor:pointer;display:flex;align-items:center;gap:.85rem;transition:all .18s;}
+.wotd-card:hover{background:var(--panel2);transform:translateX(3px);}
+.wotd-inner{flex:1;min-width:0;}
+.wotd-chip{font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,214,10,.6);margin-bottom:.2rem;}
+.wotd-de{font-family:"Cinzel",serif;font-size:1.3rem;color:var(--topaz);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.wotd-es{font-size:.82rem;color:rgba(255,255,255,.4);margin-top:.1rem;}
+.wotd-gem-wrap{flex-shrink:0;opacity:.65;}
+
+/* Sec title */
+.sec-title{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--txt3);margin-bottom:.6rem;}
+
+/* Unit chips — with theme text */
+#ugrid{display:flex;gap:.55rem;overflow-x:auto;padding-bottom:.4rem;margin-bottom:.85rem;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+#ugrid::-webkit-scrollbar{display:none;}
+.uchip{flex-shrink:0;background:var(--panel);border-radius:14px;padding:.55rem .75rem;cursor:pointer;text-align:center;transition:all .2s;min-width:58px;max-width:70px;border:1.5px solid transparent;position:relative;}
+.uchip:hover{transform:translateY(-2px);}
+.uchip.done{background:rgba(255,214,10,.06);}
+.uchip.going{background:rgba(191,90,242,.06);}
+.uchip .ce-gem{width:28px;height:28px;margin:0 auto;}
+.uchip .cl{font-size:.68rem;font-weight:800;margin-top:.25rem;color:rgba(255,255,255,.4);}
+.uchip .ct{font-size:.58rem;color:rgba(255,255,255,.22);margin-top:.1rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.uchip.done .cl{color:var(--topaz);}
+.uchip.going .cl{color:var(--amethyst);}
+
+/* Quick cards */
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:.85rem;}
+.qcard{background:var(--panel);border:1.5px solid var(--border);border-radius:var(--r2);padding:1rem .9rem;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.qcard::before{content:"";position:absolute;inset:0;opacity:0;transition:opacity .2s;background:radial-gradient(ellipse at 50% 0%,rgba(191,90,242,.14),transparent 70%);}
+.qcard:hover{border-color:rgba(191,90,242,.38);transform:translateY(-2px);}
+.qcard:hover::before{opacity:1;}
+.qi{font-size:1.5rem;margin-bottom:.35rem;line-height:1;}
+.qn{font-weight:800;font-size:.9rem;color:var(--txt);}
+.qs{font-size:.72rem;color:var(--txt2);margin-top:.15rem;}
+.qtag{display:inline-block;font-size:.6rem;font-weight:800;background:rgba(191,90,242,.2);color:var(--amethyst);border-radius:8px;padding:.1rem .45rem;margin-left:.35rem;}
+
+/* ══════════════════════════════════════════════
+   UNITS LIST
+══════════════════════════════════════════════ */
+#screen-units{background:var(--void);padding-bottom:5.5rem;}
+.ulist-item{background:var(--panel);border-radius:var(--r2);padding:.9rem 1rem;margin-bottom:.65rem;display:flex;align-items:center;gap:.9rem;cursor:pointer;border:1.5px solid var(--border);transition:all .18s;}
+.ulist-item:hover{border-color:rgba(191,90,242,.3);background:var(--panel2);transform:translateX(3px);}
+.ulinfo{flex:1;}
+.uln{font-weight:800;font-size:.92rem;}
+.ult{font-size:.77rem;color:var(--txt2);margin-top:.1rem;}
+.upbar{height:3px;background:rgba(255,255,255,.06);border-radius:2px;margin-top:.42rem;overflow:hidden;}
+.upfill{height:100%;border-radius:2px;transition:width .6s;}
+
+/* ══════════════════════════════════════════════
+   EXERCISE
+══════════════════════════════════════════════ */
+#screen-exercise{background:var(--void);}
+.exhead{background:rgba(6,6,15,.98);border-bottom:1px solid var(--border);padding:.88rem 1.1rem;display:flex;align-items:center;gap:.9rem;}
+.xbtn{background:rgba(255,255,255,.06);border:none;color:var(--txt2);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;font-size:1rem;flex-shrink:0;}
+.xbtn:hover{background:rgba(255,45,85,.18);color:var(--ruby);}
+.expbar-wrap{flex:1;position:relative;}
+.expbar{height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;}
+.expfill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--amethyst),var(--sapphire));transition:width .45s cubic-bezier(.34,1.56,.64,1);}
+.xpind{font-size:.8rem;color:var(--topaz);font-weight:900;flex-shrink:0;}
+.audio-btn{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:.22rem .55rem;font-size:.8rem;cursor:pointer;color:var(--txt2);flex-shrink:0;transition:all .15s;font-family:"Exo 2",sans-serif;}
+.audio-btn:hover{background:rgba(255,214,10,.14);border-color:rgba(255,214,10,.3);color:var(--topaz);}
+.audio-btn.speaking{color:var(--topaz);border-color:rgba(255,214,10,.4);animation:gem-pulse 1s infinite;}
+
+.exbody{flex:1;padding:1.4rem 1.1rem;display:flex;flex-direction:column;gap:1.1rem;overflow-y:auto;}
+.ex-tag-row{display:flex;align-items:center;gap:.5rem;}
+.ex-tag{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);}
+.ex-easy-badge{background:rgba(48,209,88,.12);color:var(--emerald);border-radius:8px;padding:.1rem .45rem;font-size:.62rem;font-weight:800;}
+.ex-q{font-family:"Cinzel",serif;font-size:1.6rem;line-height:1.4;color:var(--txt);}
+.ex-hint{font-size:.82rem;color:var(--txt2);font-style:italic;}
+.ex-artikel-badge{display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.04);border-radius:var(--r);padding:.55rem .85rem;border:1px solid rgba(255,255,255,.06);}
+.art-pill{font-size:.78rem;font-weight:900;border-radius:8px;padding:.2rem .65rem;}
+.art-der{background:rgba(10,132,255,.15);color:#5AA8FF;border:1px solid rgba(10,132,255,.25);}
+.art-die{background:rgba(255,45,85,.15);color:#FF7090;border:1px solid rgba(255,45,85,.25);}
+.art-das{background:rgba(48,209,88,.12);color:#5ADF80;border:1px solid rgba(48,209,88,.22);}
+.art-label{font-size:.78rem;color:rgba(255,255,255,.55);}
+
+/* Choice buttons — with glow on select */
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:.72rem;}
+.cbtn{background:var(--panel);border:2px solid var(--border);border-radius:var(--r);padding:0 .88rem;font-family:"Exo 2",sans-serif;font-size:.98rem;font-weight:700;cursor:pointer;transition:all .2s;color:var(--txt);min-height:54px;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.35;position:relative;overflow:hidden;}
+.cbtn::after{content:"";position:absolute;inset:0;opacity:0;transition:opacity .15s;background:radial-gradient(circle at 50%,rgba(191,90,242,.18),transparent 70%);}
+.cbtn.selected{border-color:rgba(191,90,242,.7);background:rgba(191,90,242,.1);box-shadow:0 0 0 3px rgba(191,90,242,.15),0 0 16px rgba(191,90,242,.18);}
+.cbtn.selected::after{opacity:1;}
+.cbtn:hover:not(:disabled):not(.selected){border-color:rgba(191,90,242,.35);background:var(--panel2);}
+.cbtn.ok{border-color:var(--emerald)!important;background:rgba(48,209,88,.1)!important;color:var(--emerald);box-shadow:0 0 16px rgba(48,209,88,.2)!important;animation:bounce-in .35s cubic-bezier(.34,1.56,.64,1);}
+.cbtn.bad{border-color:var(--ruby)!important;background:rgba(255,45,85,.1)!important;color:var(--ruby);animation:shake .35s;}
+.cbtn:disabled{cursor:not-allowed;}
+
+/* Fill input */
+.finp{width:100%;padding:1rem 1.2rem;border:2px solid var(--border);border-radius:var(--r);font-family:"Exo 2",sans-serif;font-size:1.05rem;font-weight:700;background:var(--panel);color:var(--txt);outline:none;transition:all .2s;}
+.finp:focus{border-color:rgba(191,90,242,.55);box-shadow:0 0 0 3px rgba(191,90,242,.1);}
+.finp.ok{border-color:var(--emerald);background:rgba(48,209,88,.07);box-shadow:0 0 12px rgba(48,209,88,.12);}
+.finp.bad{border-color:var(--ruby);background:rgba(255,45,85,.07);animation:shake .35s;}
+.schars{display:flex;flex-wrap:wrap;gap:.35rem;}
+.sbtn{background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:.3rem .7rem;font-size:.92rem;cursor:pointer;color:var(--txt);font-family:"Exo 2",sans-serif;font-weight:700;transition:all .12s;}
+.sbtn:hover{background:rgba(191,90,242,.18);border-color:rgba(191,90,242,.4);color:var(--amethyst);}
+
+/* Word order */
+.word-slots{min-height:54px;background:var(--panel);border:2px dashed rgba(191,90,242,.28);border-radius:var(--r);padding:.65rem;display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;transition:border-color .2s;}
+.word-slots.has-words{border-color:rgba(191,90,242,.5);}
+.word-bank{display:flex;flex-wrap:wrap;gap:.4rem;padding:.5rem 0;}
+.word-chip{background:var(--panel2);border:1.5px solid rgba(191,90,242,.28);border-radius:10px;padding:.42rem .88rem;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .18s;color:var(--txt);user-select:none;}
+.word-chip:hover{background:rgba(191,90,242,.14);border-color:rgba(191,90,242,.6);transform:translateY(-2px);}
+.word-chip.placed{background:rgba(191,90,242,.14);border-color:var(--amethyst);color:var(--amethyst);}
+.word-chip.ok-chip{background:rgba(48,209,88,.1);border-color:var(--emerald);color:var(--emerald);}
+.word-chip.bad-chip{background:rgba(255,45,85,.08);border-color:var(--ruby);color:var(--ruby);}
+
+/* Feedback panel — with gem earned display */
+.fbpanel{border-radius:var(--r);padding:1rem 1.1rem;display:none;}
+.fbpanel.ok{background:rgba(48,209,88,.07);border:1.5px solid rgba(48,209,88,.25);}
+.fbpanel.bad{background:rgba(255,45,85,.07);border:1.5px solid rgba(255,45,85,.2);}
+.fbpanel.show{display:block;animation:slide-up .28s ease;}
+.fbpanel h4{font-weight:800;margin-bottom:.25rem;font-size:.95rem;}
+.fbpanel.ok h4{color:var(--emerald);}
+.fbpanel.bad h4{color:var(--ruby);}
+.fbpanel p{font-size:.86rem;line-height:1.55;color:rgba(255,255,255,.7);}
+.fb-row{display:flex;align-items:center;gap:.75rem;}
+.fb-gem-earned{animation:star-pop .4s cubic-bezier(.34,1.56,.64,1) forwards;}
+.fb-text{flex:1;}
+
+/* Dialog */
+.dialog-box{background:var(--panel);border-radius:var(--r2);border:1.5px solid rgba(10,132,255,.2);padding:1.1rem;}
+.db-title{font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--sapphire);margin-bottom:.7rem;}
+.dialog-msg{display:flex;gap:.6rem;margin-bottom:.6rem;align-items:flex-start;}
+.dm-bubble{padding:.62rem .92rem;font-size:.88rem;line-height:1.52;max-width:86%;border-radius:16px;}
+.dialog-msg.de .dm-bubble{background:linear-gradient(135deg,rgba(10,132,255,.2),rgba(10,132,255,.08));border:1px solid rgba(10,132,255,.16);border-radius:16px 16px 16px 4px;color:#fff;}
+.dialog-msg.es .dm-bubble{background:rgba(255,255,255,.05);border-radius:16px 16px 4px 16px;color:rgba(255,255,255,.72);}
+.dm-speaker{font-size:.62rem;color:var(--txt2);margin-bottom:.12rem;font-weight:800;}
+.dialog-task{background:rgba(255,214,10,.07);border-radius:var(--r);padding:.88rem;border:1.5px solid rgba(255,214,10,.16);}
+.dialog-task p{font-size:.86rem;font-weight:700;}
+.dtinp{width:100%;margin-top:.62rem;padding:.82rem 1rem;border:1.5px solid var(--border);border-radius:var(--r);font-family:"Exo 2",sans-serif;font-size:.93rem;font-weight:600;background:var(--deep);color:#fff;outline:none;transition:border-color .2s;}
+.dtinp:focus{border-color:rgba(255,214,10,.35);}
+.ai-chip{display:inline-flex;align-items:center;gap:.4rem;background:linear-gradient(90deg,rgba(10,132,255,.65),rgba(191,90,242,.65));color:#fff;border-radius:20px;padding:.22rem .78rem;font-size:.68rem;font-weight:800;margin-bottom:.6rem;}
+
+/* Footer */
+.exfoot{padding:1rem 1.1rem;padding-bottom:calc(1rem + env(safe-area-inset-bottom));background:var(--void);}
+.btnchk{width:100%;padding:1.05rem;border-radius:var(--r);font-family:"Exo 2",sans-serif;font-size:1.05rem;font-weight:900;cursor:pointer;border:none;transition:all .18s;letter-spacing:.03em;}
+.btnchk.primary{background:linear-gradient(135deg,#8B35D6,var(--amethyst));color:#fff;box-shadow:0 4px 20px rgba(191,90,242,.32);}
+.btnchk.primary:disabled{background:var(--panel2);color:var(--txt3);box-shadow:none;cursor:not-allowed;}
+.btnchk.primary:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 6px 28px rgba(191,90,242,.48);}
+.btnchk.sunny{background:linear-gradient(135deg,var(--topaz),var(--coral));color:var(--void);display:none;font-weight:900;}
+.btnchk.sunny:hover{transform:translateY(-2px);}
+
+/* ══════════════════════════════════════════════
+   RESULT
+══════════════════════════════════════════════ */
+#screen-result{align-items:center;justify-content:center;text-align:center;padding:2rem;background:var(--void);position:relative;overflow:hidden;}
+#screen-result::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 20%,rgba(191,90,242,.12),transparent 60%);}
+.res-gem-wrap{margin:0 auto 1.1rem;position:relative;z-index:1;}
+.res-gem-spin{animation:gem-spin .7s cubic-bezier(.34,1.56,.64,1) forwards;}
+.res-title{font-family:"Cinzel",serif;font-size:2rem;background:linear-gradient(135deg,var(--topaz),var(--amethyst));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.3rem;position:relative;z-index:1;}
+.res-sub{color:var(--txt2);margin-bottom:1.5rem;font-size:.9rem;position:relative;z-index:1;}
+.res-stats{display:flex;justify-content:center;gap:.85rem;margin-bottom:1.5rem;position:relative;z-index:1;}
+.rstat{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:.72rem .9rem;min-width:74px;}
+.rstat .ri{font-size:1.3rem;margin-bottom:.1rem;}
+.rstat .rv{font-weight:900;font-size:.93rem;}
+.rstat .rl{font-size:.66rem;color:var(--txt2);}
+.res-tip{background:var(--panel);border:1px solid rgba(255,214,10,.18);border-radius:var(--r);padding:.75rem 1rem;margin-bottom:1.5rem;font-size:.82rem;color:rgba(255,255,255,.65);text-align:left;position:relative;z-index:1;line-height:1.55;}
+.res-tip strong{color:var(--topaz);}
+.res-btns{display:flex;flex-direction:column;gap:.65rem;width:100%;max-width:300px;position:relative;z-index:1;}
+
+/* ══════════════════════════════════════════════
+   PROFILE
+══════════════════════════════════════════════ */
+#screen-profile{background:var(--void);padding-bottom:5.5rem;}
+.prof-hero{background:linear-gradient(160deg,var(--panel),var(--deep));border-bottom:1px solid var(--border);padding:1.8rem 1.1rem 1.4rem;text-align:center;position:relative;overflow:hidden;}
+.prof-hero::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 100%,rgba(191,90,242,.1),transparent 60%);}
+.pav{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--amethyst),var(--sapphire));display:flex;align-items:center;justify-content:center;font-family:"Cinzel",serif;font-size:1.9rem;color:#fff;margin:0 auto .7rem;box-shadow:0 0 32px rgba(191,90,242,.35);position:relative;z-index:1;}
+.pname{font-family:"Cinzel",serif;font-size:1.45rem;position:relative;z-index:1;}
+.plevel{color:var(--amethyst);font-size:.85rem;font-weight:700;margin-top:.2rem;position:relative;z-index:1;}
+.pstats{display:grid;grid-template-columns:repeat(3,1fr);background:var(--panel);border-bottom:1px solid var(--border);}
+.pstat{padding:.88rem .4rem;text-align:center;border-right:1px solid var(--border);}
+.pstat:last-child{border-right:none;}
+.pstat .pv{font-family:"Cinzel",serif;font-size:1.55rem;color:var(--topaz);}
+.pstat .pl{font-size:.66rem;color:var(--txt2);}
+.badgsec{padding:1rem;}
+.bgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:.62rem;}
+.bitem{text-align:center;padding:.65rem .2rem;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);transition:all .2s;}
+.bitem.earned{border-color:rgba(255,214,10,.3);background:rgba(255,214,10,.05);}
+.bitem .bi-gem{width:28px;height:28px;margin:0 auto;}
+.bitem .bn{font-size:.6rem;color:var(--txt2);margin-top:.22rem;}
+.bitem.locked{opacity:.15;filter:grayscale(1);}
+
+/* ══════════════════════════════════════════════
+   MODAL
+══════════════════════════════════════════════ */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:none;align-items:flex-end;justify-content:center;}
+.overlay.open{display:flex;}
+.sheet{background:var(--deep);border-radius:28px 28px 0 0;border-top:1px solid var(--border);padding:1.4rem 1.1rem;width:100%;max-width:480px;max-height:82vh;overflow-y:auto;}
+.sheet h3{font-family:"Cinzel",serif;font-size:1.3rem;margin-bottom:.9rem;}
+.tlist{display:flex;flex-direction:column;gap:.5rem;margin-bottom:.85rem;}
+.titem{background:var(--panel);border:1.5px solid var(--border);border-radius:var(--r);padding:.82rem .95rem;cursor:pointer;display:flex;align-items:center;gap:.72rem;transition:all .18s;}
+.titem:hover{border-color:rgba(191,90,242,.42);background:var(--panel2);}
+.titem .ti{font-size:1.2rem;flex-shrink:0;}.titem .tn{font-weight:800;font-size:.9rem;}.titem .td{font-size:.73rem;color:var(--txt2);}
+.cls-btn{width:100%;padding:.88rem;border:1.5px solid var(--border);border-radius:var(--r);background:transparent;font-family:"Exo 2",sans-serif;font-size:.9rem;cursor:pointer;font-weight:700;color:var(--txt2);}
+
+/* LOADING */
+.dots-row{display:flex;align-items:center;gap:.65rem;color:var(--txt2);font-size:.88rem;}
+.dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amethyst);animation:bop 1.2s infinite;}
+.dots span:nth-child(2){animation-delay:.2s;}.dots span:nth-child(3){animation-delay:.4s;}
+
+@media(min-width:480px){.qgrid{grid-template-columns:repeat(3,1fr);}}
+</style>
+</head>
+<body>
+
+<div id="gem-fx"></div>
+<canvas id="confetti-canvas"></canvas>
+<div id="badge-toast">
+  <div class="bt-gem" id="bt-gem-el"></div>
+  <div><div class="bt-title">¡Gema desbloqueada!</div><div class="bt-name" id="bt-name">—</div></div>
+</div>
+
+<!-- ONBOARDING -->
+<div id="screen-onboard" class="screen">
+  <div class="ob-slides">
+    <div class="ob-slide active" id="ob0">
+      <div class="ob-gem-wrap" id="ob-gem-0"></div>
+      <h2 class="ob-title">¡Willkommen!</h2>
+      <p class="ob-text">Aprende alemán desde cero con GemDeutsch — el juego de gemas que enseña alemán de verdad, gramática completa A1–A2.</p>
+    </div>
+    <div class="ob-slide" id="ob1">
+      <div class="ob-gem-wrap" id="ob-gem-1"></div>
+      <h2 class="ob-title">Colecciona gemas</h2>
+      <p class="ob-text">Cada respuesta correcta rompe una gema y ganas XP. La app recuerda tus errores y te los pregunta más — aprendizaje adaptativo real.</p>
+    </div>
+    <div class="ob-slide" id="ob2">
+      <div class="ob-gem-wrap" id="ob-gem-2"></div>
+      <h2 class="ob-title">5 minutos al día</h2>
+      <p class="ob-text">Vocabulario con artículos, gramática A1-A2, conjugaciones, orden de palabras y diálogos con IA. En español. Sin cuenta, sin datos.</p>
+    </div>
+    <div class="ob-dots">
+      <div class="ob-dot active" id="dot0"></div>
+      <div class="ob-dot" id="dot1"></div>
+      <div class="ob-dot" id="dot2"></div>
+    </div>
+    <button class="btn-gem" id="ob-btn" onclick="obNext()">Siguiente →</button>
+  </div>
+</div>
+
+<!-- WELCOME -->
+<div id="screen-welcome" class="screen">
+  <div class="w-inner">
+    <div class="w-gem-hero" id="welcome-gem-hero"></div>
+    <div class="w-sub">Aprende alemán</div>
+    <h1 class="w-title">GemDeutsch</h1>
+    <p class="w-tagline">Alemán A1–A2 · Gramática completa<br>Artículos integrados · Diálogos con IA</p>
+    <div class="nic-wrap">
+      <label>¿Cómo te llamas?</label>
+      <input id="nic" type="text" placeholder="Tu apodo…" maxlength="20"/>
+    </div>
+    <button class="btn-gem" onclick="startApp()">¡Spielen! →</button><br>
+    <button class="btn-ghost" onclick="startApp()">Continuar sin nombre</button>
+    <p class="priv">🔒 Sin cuenta · Sin email · Todo en tu dispositivo</p>
+  </div>
+</div>
+
+<!-- HOME -->
+<div id="screen-home" class="screen">
+  <div class="topbar">
+    <span class="logo"><span id="logo-gem-el"></span>GemDeutsch</span>
+    <div class="stats-row">
+      <div class="stat-pill">🔥<span id="h-str">0</span></div>
+      <div class="stat-pill">💎<span id="h-xp">0</span></div>
+    </div>
+  </div>
+  <div class="home-body">
+    <div class="hello">¡Hola, <span class="hello-name" id="h-name">…</span>!</div>
+    <div class="hero-card">
+      <div class="hero-top">
+        <div class="hero-left">
+          <div class="hero-streak-row">
+            <span class="hero-num" id="sn">0</span>
+            <span class="hero-unit">días 🔥</span>
+          </div>
+          <div class="hero-lbl">seguidos</div>
+        </div>
+        <div class="hero-right">
+          <div class="hero-gem-mini" id="hero-gem-mini"></div>
+          <div class="hero-goal-num"><span id="goal-cur">0</span>/<span id="goal-max">5</span></div>
+          <div class="hero-goal-lbl">objetivo de hoy</div>
+        </div>
+      </div>
+      <div class="hero-bar"><div class="hero-fill" id="goal-fill" style="width:0%"></div></div>
+      <div class="hero-msg" id="goal-msg">¡Empieza hoy — incluso 3 preguntas cuentan!</div>
+    </div>
+    <div id="wotd-card" class="wotd-card" onclick="startWotd()">
+      <div class="wotd-inner">
+        <div class="wotd-chip">🌟 Palabra del día</div>
+        <div class="wotd-de" id="wotd-de">cargando…</div>
+        <div class="wotd-es" id="wotd-es"></div>
+      </div>
+      <div class="wotd-gem-wrap" id="wotd-gem"></div>
+    </div>
+    <div class="sec-title">Unidades</div>
+    <div id="ugrid"></div>
+    <div class="sec-title">Practicar</div>
+    <div class="qgrid">
+      <div class="qcard" onclick="openModal('vocab')"><div class="qi">📖</div><div class="qn">Vocabulario</div><div class="qs">Con artículos</div></div>
+      <div class="qcard" onclick="openModal('grammar')"><div class="qi">⚙️</div><div class="qn">Gramática</div><div class="qs">14 temas A1-A2</div></div>
+      <div class="qcard" onclick="openModal('konjug')"><div class="qi">🔀</div><div class="qn">Conjugación</div><div class="qs">Todos los tiempos</div></div>
+      <div class="qcard" onclick="startWordOrder()"><div class="qi">🧩</div><div class="qn">Orden palabras</div><div class="qs">Arma la frase</div></div>
+      <div class="qcard" onclick="startDialog()"><div class="qi">💬</div><div class="qn">Diálogo IA</div><div class="qs">Conversación real</div></div>
+      <div class="qcard" onclick="startReview()"><div class="qi">🔄</div><div class="qn">Repasar</div><div class="qs">Puntos débiles</div></div>
+      <div class="qcard" onclick="startQuick()"><div class="qi">⚡</div><div class="qn">Ronda rápida<span class="qtag">3 min</span></div><div class="qs">3 preguntas</div></div>
+    </div>
+  </div>
+  <nav class="botnav">
+    <button class="nbtn active" onclick="showScreen('home')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>Inicio</button>
+    <button class="nbtn" onclick="showScreen('units')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Unidades</button>
+    <button class="nbtn" onclick="showScreen('profile')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>Perfil</button>
+  </nav>
+</div>
+
+<!-- UNITS -->
+<div id="screen-units" class="screen">
+  <div class="topbar"><span class="logo">Unidades</span><div class="stats-row"><div class="stat-pill">💎<span id="u-xp">0</span></div></div></div>
+  <div style="padding:1rem;padding-bottom:5.5rem">
+    <p style="color:var(--txt2);font-size:.85rem;margin-bottom:.85rem">Empieza donde quieras. Cada sustantivo incluye su artículo.</p>
+    <div id="ulist"></div>
+  </div>
+  <nav class="botnav">
+    <button class="nbtn" onclick="showScreen('home')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>Inicio</button>
+    <button class="nbtn active" onclick="showScreen('units')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Unidades</button>
+    <button class="nbtn" onclick="showScreen('profile')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>Perfil</button>
+  </nav>
+</div>
+
+<!-- EXERCISE -->
+<div id="screen-exercise" class="screen">
+  <div class="exhead">
+    <button class="xbtn" onclick="confirmExit()">✕</button>
+    <div class="expbar-wrap"><div class="expbar"><div class="expfill" id="epf" style="width:0%"></div></div></div>
+    <button class="audio-btn" id="audio-btn" onclick="speakCurrent()">🔊</button>
+    <span class="xpind" id="xpind">0 XP</span>
+  </div>
+  <div class="exbody" id="exbody"><div class="dots-row"><div class="dots"><span></span><span></span><span></span></div>Cargando…</div></div>
+  <div class="exfoot">
+    <button class="btnchk primary" id="bchk" onclick="checkAnswer()" disabled>Comprobar</button>
+    <button class="btnchk sunny" id="bnxt" onclick="nextEx()">Siguiente →</button>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div id="screen-result" class="screen">
+  <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%">
+    <div class="res-gem-wrap"><div id="res-gem-el" class="res-gem-spin"></div></div>
+    <div class="res-title" id="rt">¡Gut gemacht!</div>
+    <p class="res-sub" id="rsub">Has completado la ronda.</p>
+    <div class="res-stats">
+      <div class="rstat"><div class="ri">💎</div><div class="rv" id="r-xp">+0</div><div class="rl">XP</div></div>
+      <div class="rstat"><div class="ri">✅</div><div class="rv" id="r-cor">0/0</div><div class="rl">Correcto</div></div>
+      <div class="rstat"><div class="ri">🎯</div><div class="rv" id="r-acc">0%</div><div class="rl">Precisión</div></div>
+    </div>
+    <div class="res-tip" id="res-tip" style="display:none"></div>
+    <div class="res-btns">
+      <button class="btn-gem" onclick="playAgain()">Jugar otra vez</button>
+      <button class="btnchk primary" onclick="showScreen('home')">Volver al inicio</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE -->
+<div id="screen-profile" class="screen">
+  <div class="prof-hero">
+    <div class="pav" id="pav">?</div>
+    <div class="pname" id="pnm">—</div>
+    <div class="plevel" id="plvl">Nivel 1 — Anfänger</div>
+  </div>
+  <div class="pstats">
+    <div class="pstat"><div class="pv" id="ps-xp">0</div><div class="pl">XP total</div></div>
+    <div class="pstat"><div class="pv" id="ps-str">0</div><div class="pl">Racha 🔥</div></div>
+    <div class="pstat"><div class="pv" id="ps-ex">0</div><div class="pl">Ejercicios</div></div>
+  </div>
+  <div class="badgsec"><div class="sec-title">Gemas desbloqueadas</div><div class="bgrid" id="bgrid"></div></div>
+  <div id="weekly-report-ph"></div>
+  <nav class="botnav">
+    <button class="nbtn" onclick="showScreen('home')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>Inicio</button>
+    <button class="nbtn" onclick="showScreen('units')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Unidades</button>
+    <button class="nbtn active" onclick="showScreen('profile')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>Perfil</button>
+  </nav>
+</div>
+
+<!-- MODAL -->
+<div class="overlay" id="modal" onclick="closeModal(event)">
+  <div class="sheet"><h3 id="mtitle">Tema</h3><div class="tlist" id="tlist"></div><button class="cls-btn" onclick="closeModalDirect()">Cancelar</button></div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+//  GEM SVG SYSTEM — real crystal shapes
+// ════════════════════════════════════════════
+const GEMS = {
+  ruby:     {color:"#FF2D55",light:"#FF6B85",dark:"#CC0030",mid:"#FF1A45"},
+  amethyst: {color:"#BF5AF2",light:"#D68FF8",dark:"#8B1FC8",mid:"#A830E0"},
+  sapphire: {color:"#0A84FF",light:"#5AB0FF",dark:"#005FCC",mid:"#0060DD"},
+  emerald:  {color:"#30D158",light:"#70E890",dark:"#1A8C3A",mid:"#22A845"},
+  topaz:    {color:"#FFD60A",light:"#FFE85A",dark:"#CC9900",mid:"#F0C000"},
+  diamond:  {color:"#C8E6FF",light:"#FFFFFF",dark:"#85B8E8",mid:"#AACCEE"},
+  coral:    {color:"#FF6B35",light:"#FF9B75",dark:"#CC3A00",mid:"#EE5020"},
+  ice:      {color:"#7DF9FF",light:"#BFFEFF",dark:"#30C8CC",mid:"#55E8EE"},
+};
+
+const GEM_SEQ = ["ruby","amethyst","sapphire","emerald","topaz","diamond","coral","ice"];
+
+function gemSVG(type, size=40, opts={}) {
+  const g = GEMS[type] || GEMS.amethyst;
+  const {pulse=false, float=false, spin=false} = opts;
+  const anim = pulse?"animate-pulse":float?"animate-float":spin?"animate-spin":"";
+  const id = type+Math.random().toString(36).slice(2,6);
+  // Hexagonal gem with facets
+  return `<svg width="${size}" height="${size}" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" class="gem-svg ${anim}" style="color:${g.color}">
+    <defs>
+      <radialGradient id="gf${id}" cx="35%" cy="28%" r="70%">
+        <stop offset="0%" stop-color="${g.light}" stop-opacity=".95"/>
+        <stop offset="40%" stop-color="${g.color}" stop-opacity=".9"/>
+        <stop offset="100%" stop-color="${g.dark}" stop-opacity=".85"/>
+      </radialGradient>
+      <radialGradient id="gs${id}" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="white" stop-opacity=".6"/>
+        <stop offset="100%" stop-color="white" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <!-- main body -->
+    <polygon points="20,3 33,10 33,30 20,37 7,30 7,10" fill="url(#gf${id})"/>
+    <!-- top facet -->
+    <polygon points="20,3 33,10 20,14 7,10" fill="${g.light}" fill-opacity=".45"/>
+    <!-- left facet -->
+    <polygon points="7,10 20,14 20,37 7,30" fill="${g.dark}" fill-opacity=".35"/>
+    <!-- right facet -->
+    <polygon points="33,10 20,14 20,37 33,30" fill="${g.mid}" fill-opacity=".2"/>
+    <!-- center shine -->
+    <polygon points="20,14 27,17 20,24 13,17" fill="url(#gs${id})" opacity=".7"/>
+    <!-- top highlight -->
+    <ellipse cx="23" cy="8" rx="4" ry="2.5" fill="white" opacity=".5" transform="rotate(-15,23,8)"/>
+    <!-- edge lines -->
+    <polygon points="20,3 33,10 33,30 20,37 7,30 7,10" fill="none" stroke="${g.light}" stroke-width=".6" stroke-opacity=".5"/>
+    <line x1="20" y1="3" x2="20" y2="14" stroke="${g.light}" stroke-width=".5" stroke-opacity=".4"/>
+    <line x1="7" y1="10" x2="20" y2="14" stroke="${g.light}" stroke-width=".4" stroke-opacity=".3"/>
+    <line x1="33" y1="10" x2="20" y2="14" stroke="${g.light}" stroke-width=".4" stroke-opacity=".3"/>
+    <line x1="20" y1="14" x2="20" y2="37" stroke="${g.dark}" stroke-width=".4" stroke-opacity=".2"/>
+  </svg>`;
+}
+
+function renderGem(el, type, size=40, opts={}) {
+  if(!el) return;
+  el.innerHTML = gemSVG(type, size, opts);
+}
+
+function initGems() {
+  // Welcome hero — large spinning gem
+  const wh = document.getElementById("welcome-gem-hero");
+  if(wh) wh.innerHTML = gemSVG("amethyst", 88, {float:true});
+
+  // Logo gem — tiny
+  const lg = document.getElementById("logo-gem-el");
+  if(lg) lg.innerHTML = gemSVG("topaz", 18);
+
+  // Onboarding gems
+  const obGems = [["ob-gem-0","ruby"],["ob-gem-1","emerald"],["ob-gem-2","sapphire"]];
+  obGems.forEach(([id,type]) => {
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = gemSVG(type, 72, {float:true});
+  });
+
+  // Hero mini gem
+  const hm = document.getElementById("hero-gem-mini");
+  if(hm) hm.innerHTML = gemSVG("topaz", 32, {pulse:true});
+
+  // WOTD gem
+  const wg = document.getElementById("wotd-gem");
+  if(wg) wg.innerHTML = gemSVG("topaz", 28);
+}
+
+// ════════════════════════════════════════════
+//  VOCABULARY DATA — artículos siempre integrados
+// ════════════════════════════════════════════
+const UNITS = [
+  {id:0,name:"Begrüßung & Vorstellung",short:"Saludos",gemType:"ruby",gemColor:"#FF2D55",
+   vocab:[
+    {de:"Hallo",es:"Hola",typ:"expr"},{de:"Guten Morgen",es:"Buenos días",typ:"expr"},
+    {de:"Guten Tag",es:"Buenas tardes (formal)",typ:"expr"},{de:"Auf Wiedersehen",es:"Hasta luego",typ:"expr"},
+    {de:"Tschüss",es:"Chao / Adiós",typ:"expr"},{de:"Wie heißt du?",es:"¿Cómo te llamas?",typ:"expr"},
+    {de:"Ich heiße …",es:"Me llamo …",typ:"expr"},{de:"Woher kommst du?",es:"¿De dónde eres?",typ:"expr"},
+    {de:"Ich komme aus …",es:"Vengo de … / Soy de …",typ:"expr"},{de:"Wie geht es dir?",es:"¿Cómo estás?",typ:"expr"},
+    {de:"Gut, danke.",es:"Bien, gracias.",typ:"expr"},{de:"Bitte",es:"Por favor / De nada",typ:"expr"},
+    {de:"Danke",es:"Gracias",typ:"expr"},{de:"Entschuldigung",es:"Disculpa / Perdón",typ:"expr"},
+    {de:"Ja",es:"Sí",typ:"expr"},{de:"Nein",es:"No",typ:"expr"},
+    {de:"der Name",es:"el nombre",typ:"m",art:"der"},{de:"die Sprache",es:"el idioma",typ:"f",art:"die"},
+    {de:"das Land",es:"el país",typ:"n",art:"das"},{de:"die Stadt",es:"la ciudad",typ:"f",art:"die"}]},
+  {id:1,name:"Familie & Personen",short:"Familia",gemType:"amethyst",gemColor:"#BF5AF2",
+   vocab:[
+    {de:"die Familie",es:"la familia",typ:"f",art:"die"},{de:"die Mutter",es:"la madre",typ:"f",art:"die"},
+    {de:"der Vater",es:"el padre",typ:"m",art:"der"},{de:"die Schwester",es:"la hermana",typ:"f",art:"die"},
+    {de:"der Bruder",es:"el hermano",typ:"m",art:"der"},{de:"die Großmutter",es:"la abuela",typ:"f",art:"die"},
+    {de:"der Großvater",es:"el abuelo",typ:"m",art:"der"},{de:"das Kind",es:"el niño/a",typ:"n",art:"das"},
+    {de:"der Mann",es:"el hombre / esposo",typ:"m",art:"der"},{de:"die Frau",es:"la mujer / esposa",typ:"f",art:"die"},
+    {de:"der Freund",es:"el amigo / novio",typ:"m",art:"der"},{de:"die Freundin",es:"la amiga / novia",typ:"f",art:"die"},
+    {de:"die Eltern",es:"los padres (plural)",typ:"pl"},{de:"das Baby",es:"el bebé",typ:"n",art:"das"},
+    {de:"der Sohn",es:"el hijo",typ:"m",art:"der"},{de:"die Tochter",es:"la hija",typ:"f",art:"die"},
+    {de:"der Onkel",es:"el tío",typ:"m",art:"der"},{de:"die Tante",es:"la tía",typ:"f",art:"die"},
+    {de:"alt",es:"viejo / mayor",typ:"adj"},{de:"jung",es:"joven",typ:"adj"}]},
+  {id:2,name:"Zahlen, Zeit & Datum",short:"Números",gemType:"sapphire",gemColor:"#0A84FF",
+   vocab:[
+    {de:"eins",es:"uno",typ:"num"},{de:"zwei",es:"dos",typ:"num"},{de:"drei",es:"tres",typ:"num"},
+    {de:"vier",es:"cuatro",typ:"num"},{de:"fünf",es:"cinco",typ:"num"},{de:"zehn",es:"diez",typ:"num"},
+    {de:"zwanzig",es:"veinte",typ:"num"},{de:"hundert",es:"cien",typ:"num"},
+    {de:"die Uhr",es:"el reloj / la hora",typ:"f",art:"die"},{de:"die Minute",es:"el minuto",typ:"f",art:"die"},
+    {de:"die Stunde",es:"la hora",typ:"f",art:"die"},{de:"der Tag",es:"el día",typ:"m",art:"der"},
+    {de:"die Woche",es:"la semana",typ:"f",art:"die"},{de:"der Monat",es:"el mes",typ:"m",art:"der"},
+    {de:"das Jahr",es:"el año",typ:"n",art:"das"},{de:"das Wochenende",es:"el fin de semana",typ:"n",art:"das"},
+    {de:"der Montag",es:"el lunes",typ:"m",art:"der"},{de:"der Freitag",es:"el viernes",typ:"m",art:"der"},
+    {de:"der Samstag",es:"el sábado",typ:"m",art:"der"},{de:"der Sonntag",es:"el domingo",typ:"m",art:"der"}]},
+  {id:3,name:"Essen & Trinken",short:"Comida",gemType:"emerald",gemColor:"#30D158",
+   vocab:[
+    {de:"das Frühstück",es:"el desayuno",typ:"n",art:"das"},{de:"das Mittagessen",es:"el almuerzo",typ:"n",art:"das"},
+    {de:"das Abendessen",es:"la cena",typ:"n",art:"das"},{de:"das Brot",es:"el pan",typ:"n",art:"das"},
+    {de:"das Fleisch",es:"la carne",typ:"n",art:"das"},{de:"der Fisch",es:"el pescado",typ:"m",art:"der"},
+    {de:"das Gemüse",es:"las verduras",typ:"n",art:"das"},{de:"das Obst",es:"la fruta",typ:"n",art:"das"},
+    {de:"das Wasser",es:"el agua",typ:"n",art:"das"},{de:"der Kaffee",es:"el café",typ:"m",art:"der"},
+    {de:"das Bier",es:"la cerveza",typ:"n",art:"das"},{de:"der Wein",es:"el vino",typ:"m",art:"der"},
+    {de:"die Milch",es:"la leche",typ:"f",art:"die"},{de:"der Kuchen",es:"el pastel",typ:"m",art:"der"},
+    {de:"die Suppe",es:"la sopa",typ:"f",art:"die"},{de:"das Ei",es:"el huevo",typ:"n",art:"das"},
+    {de:"der Käse",es:"el queso",typ:"m",art:"der"},{de:"die Wurst",es:"el embutido",typ:"f",art:"die"},
+    {de:"essen",es:"comer",typ:"verb"},{de:"trinken",es:"beber",typ:"verb"}]},
+  {id:4,name:"Wohnen & Stadt",short:"Ciudad",gemType:"topaz",gemColor:"#FFD60A",
+   vocab:[
+    {de:"das Haus",es:"la casa",typ:"n",art:"das"},{de:"die Wohnung",es:"el apartamento",typ:"f",art:"die"},
+    {de:"das Zimmer",es:"la habitación",typ:"n",art:"das"},{de:"die Küche",es:"la cocina",typ:"f",art:"die"},
+    {de:"das Badezimmer",es:"el baño",typ:"n",art:"das"},{de:"das Wohnzimmer",es:"el salón",typ:"n",art:"das"},
+    {de:"der Garten",es:"el jardín",typ:"m",art:"der"},{de:"die Straße",es:"la calle",typ:"f",art:"die"},
+    {de:"der Bahnhof",es:"la estación de tren",typ:"m",art:"der"},{de:"die Apotheke",es:"la farmacia",typ:"f",art:"die"},
+    {de:"das Krankenhaus",es:"el hospital",typ:"n",art:"das"},{de:"der Supermarkt",es:"el supermercado",typ:"m",art:"der"},
+    {de:"der Park",es:"el parque",typ:"m",art:"der"},{de:"links",es:"a la izquierda",typ:"adv"},
+    {de:"rechts",es:"a la derecha",typ:"adv"},{de:"geradeaus",es:"recto / todo recto",typ:"adv"},
+    {de:"nah",es:"cerca",typ:"adj"},{de:"weit",es:"lejos",typ:"adj"},
+    {de:"wohnen",es:"vivir / habitar",typ:"verb"},{de:"mieten",es:"alquilar",typ:"verb"}]},
+  {id:5,name:"Arbeit & Schule",short:"Trabajo",gemType:"diamond",gemColor:"#C8E6FF",
+   vocab:[
+    {de:"die Arbeit",es:"el trabajo",typ:"f",art:"die"},{de:"der Beruf",es:"la profesión",typ:"m",art:"der"},
+    {de:"der Arzt / die Ärztin",es:"el médico / la médica",typ:"m",art:"der"},
+    {de:"der Lehrer / die Lehrerin",es:"el profe / la profe",typ:"m",art:"der"},
+    {de:"die Schule",es:"la escuela",typ:"f",art:"die"},{de:"die Universität",es:"la universidad",typ:"f",art:"die"},
+    {de:"das Büro",es:"la oficina",typ:"n",art:"das"},{de:"der Chef",es:"el jefe",typ:"m",art:"der"},
+    {de:"das Gehalt",es:"el salario",typ:"n",art:"das"},{de:"die Prüfung",es:"el examen",typ:"f",art:"die"},
+    {de:"das Heft",es:"el cuaderno",typ:"n",art:"das"},{de:"der Stift",es:"el bolígrafo",typ:"m",art:"der"},
+    {de:"das Buch",es:"el libro",typ:"n",art:"das"},{de:"die Hausaufgabe",es:"la tarea",typ:"f",art:"die"},
+    {de:"lernen",es:"aprender / estudiar",typ:"verb"},{de:"studieren",es:"estudiar (universidad)",typ:"verb"},
+    {de:"arbeiten",es:"trabajar",typ:"verb"},{de:"schreiben",es:"escribir",typ:"verb"},
+    {de:"lesen",es:"leer",typ:"verb"},{de:"verstehen",es:"entender",typ:"verb"}]},
+  {id:6,name:"Freizeit & Hobbys",short:"Ocio",gemType:"coral",gemColor:"#FF6B35",
+   vocab:[
+    {de:"die Freizeit",es:"el tiempo libre",typ:"f",art:"die"},{de:"das Hobby",es:"el hobby",typ:"n",art:"das"},
+    {de:"der Sport",es:"el deporte",typ:"m",art:"der"},{de:"die Musik",es:"la música",typ:"f",art:"die"},
+    {de:"der Film",es:"la película",typ:"m",art:"der"},{de:"das Kino",es:"el cine",typ:"n",art:"das"},
+    {de:"das Konzert",es:"el concierto",typ:"n",art:"das"},{de:"das Spiel",es:"el juego",typ:"n",art:"das"},
+    {de:"der Urlaub",es:"las vacaciones",typ:"m",art:"der"},{de:"der Strand",es:"la playa",typ:"m",art:"der"},
+    {de:"das Fahrrad",es:"la bicicleta",typ:"n",art:"das"},{de:"spielen",es:"jugar / tocar",typ:"verb"},
+    {de:"lesen",es:"leer",typ:"verb"},{de:"reisen",es:"viajar",typ:"verb"},
+    {de:"kochen",es:"cocinar",typ:"verb"},{de:"tanzen",es:"bailar",typ:"verb"},
+    {de:"schwimmen",es:"nadar",typ:"verb"},{de:"gern",es:"con gusto / me gusta…",typ:"adv"},
+    {de:"lieber",es:"prefiero…",typ:"adv"},{de:"am liebsten",es:"lo que más me gusta",typ:"adv"}]},
+  {id:7,name:"Reisen & Transport",short:"Viajes",gemType:"ice",gemColor:"#7DF9FF",
+   vocab:[
+    {de:"die Reise",es:"el viaje",typ:"f",art:"die"},{de:"das Flugzeug",es:"el avión",typ:"n",art:"das"},
+    {de:"der Zug",es:"el tren",typ:"m",art:"der"},{de:"das Auto",es:"el coche",typ:"n",art:"das"},
+    {de:"der Bus",es:"el autobús",typ:"m",art:"der"},{de:"das Ticket",es:"el billete",typ:"n",art:"das"},
+    {de:"der Flughafen",es:"el aeropuerto",typ:"m",art:"der"},{de:"der Bahnhof",es:"la estación",typ:"m",art:"der"},
+    {de:"das Hotel",es:"el hotel",typ:"n",art:"das"},{de:"das Zimmer",es:"la habitación",typ:"n",art:"das"},
+    {de:"der Reisepass",es:"el pasaporte",typ:"m",art:"der"},{de:"die Verspätung",es:"el retraso",typ:"f",art:"die"},
+    {de:"abfahren",es:"salir / partir",typ:"verb"},{de:"ankommen",es:"llegar",typ:"verb"},
+    {de:"buchen",es:"reservar",typ:"verb"},{de:"umsteigen",es:"hacer transbordo",typ:"verb"},
+    {de:"früh",es:"temprano",typ:"adv"},{de:"spät",es:"tarde",typ:"adv"},
+    {de:"zurück",es:"de vuelta",typ:"adv"},{de:"die Grenze",es:"la frontera",typ:"f",art:"die"}]},
+  {id:8,name:"Gesundheit & Körper",short:"Salud",gemType:"emerald",gemColor:"#30D158",
+   vocab:[
+    {de:"der Kopf",es:"la cabeza",typ:"m",art:"der"},{de:"das Auge",es:"el ojo",typ:"n",art:"das"},
+    {de:"die Nase",es:"la nariz",typ:"f",art:"die"},{de:"der Mund",es:"la boca",typ:"m",art:"der"},
+    {de:"die Hand",es:"la mano",typ:"f",art:"die"},{de:"der Fuß",es:"el pie",typ:"m",art:"der"},
+    {de:"das Bein",es:"la pierna",typ:"n",art:"das"},{de:"der Arm",es:"el brazo",typ:"m",art:"der"},
+    {de:"der Bauch",es:"el estómago",typ:"m",art:"der"},{de:"der Rücken",es:"la espalda",typ:"m",art:"der"},
+    {de:"die Erkältung",es:"el resfriado",typ:"f",art:"die"},{de:"das Fieber",es:"la fiebre",typ:"n",art:"das"},
+    {de:"der Schmerz",es:"el dolor",typ:"m",art:"der"},{de:"die Tablette",es:"la pastilla",typ:"f",art:"die"},
+    {de:"das Medikament",es:"el medicamento",typ:"n",art:"das"},{de:"krank",es:"enfermo/a",typ:"adj"},
+    {de:"gesund",es:"sano/a",typ:"adj"},{de:"müde",es:"cansado/a",typ:"adj"},
+    {de:"schlafen",es:"dormir",typ:"verb"},{de:"sich fühlen",es:"sentirse",typ:"verb"}]}
+];
+
+const GRAMEX={
+  artikel:[
+    {type:"mc",q:"___ Mann kommt aus Spanien.",choices:["Der","Die","Das","Den"],correct:0,ex:"Mann = masculino, Nominativ (sujeto) → Der Mann."},
+    {type:"mc",q:"Ich sehe ___ Mann.",choices:["der","die","das","den"],correct:3,ex:"Mann = masculino, Akkusativ (objeto directo) → den Mann."},
+    {type:"mc",q:"___ Frau heißt Maria.",choices:["Der","Die","Das","Dem"],correct:1,ex:"Frau = femenino → Die Frau (Nominativ)."},
+    {type:"mc",q:"Das ist ___ Buch.",choices:["ein","eine","einen","einem"],correct:0,ex:"Buch = neutro → ein Buch (artículo indefinido)."},
+    {type:"mc",q:"Er gibt ___ Frau eine Blume.",choices:["die","der","das","den"],correct:1,ex:"Frau + Dativ (objeto indirecto) → der Frau."},
+    {type:"fill",q:"Ich kaufe ___ Brot. (artículo indefinido, neutro)",a:"ein",ex:"Brot = neutro, Akkusativ → ein Brot."},
+    {type:"fill",q:"Das ist ___ Apotheke. (artículo indefinido)",a:"eine",ex:"Apotheke = femenino → eine Apotheke."},
+    {type:"mc",q:"Er wohnt in ___ Haus.",choices:["einem","einen","ein","eine"],correct:0,ex:"Dativo neutro: in einem Haus (en + Dativo)."}],
+  sein_haben:[
+    {type:"mc",q:"Ich ___ Lehrerin.",choices:["bin","bist","ist","sind"],correct:0,ex:"sein, 1ª persona singular → ich bin."},
+    {type:"fill",q:"Du ___ sehr nett. (sein)",a:"bist",ex:"sein, 2ª persona singular → du bist."},
+    {type:"mc",q:"Er ___ aus Spanien.",choices:["bin","bist","ist","sind"],correct:2,ex:"sein, 3ª persona singular → er ist."},
+    {type:"fill",q:"Wir ___ Freunde. (sein)",a:"sind",ex:"sein, 1ª persona plural → wir sind."},
+    {type:"mc",q:"Ich ___ einen Bruder.",choices:["habe","hast","hat","haben"],correct:0,ex:"haben, 1ª persona singular → ich habe."},
+    {type:"fill",q:"Sie ___ keine Zeit. (haben, ella)",a:"hat",ex:"haben, 3ª persona singular → sie hat."},
+    {type:"mc",q:"Ihr ___ Hunger.",choices:["habe","hast","habt","haben"],correct:2,ex:"haben, 2ª persona plural → ihr habt."},
+    {type:"fill",q:"Sie ___ drei Kinder. (haben, ellos)",a:"haben",ex:"haben, 3ª persona plural → sie haben."}],
+  modalverben:[
+    {type:"mc",q:"Ich ___ Deutsch sprechen.",choices:["kann","kannst","können","könnt"],correct:0,ex:"können (poder), 1ª persona → ich kann."},
+    {type:"fill",q:"Du ___ hier nicht rauchen. (dürfen)",a:"darfst",ex:"dürfen (tener permiso), 2ª persona → du darfst."},
+    {type:"mc",q:"Er ___ morgen arbeiten.",choices:["muss","musst","müssen","müsst"],correct:0,ex:"müssen (tener que), 3ª persona → er muss."},
+    {type:"mc",q:"Wir ___ ins Kino gehen.",choices:["will","willst","wollen","wollt"],correct:2,ex:"wollen (querer), 1ª persona plural → wir wollen."},
+    {type:"fill",q:"Ich ___ einen Kaffee. (möchten)",a:"möchte",ex:"möchten (quisiera), 1ª persona → ich möchte."},
+    {type:"mc",q:"Du ___ mehr schlafen.",choices:["soll","sollst","sollen","sollt"],correct:1,ex:"sollen (se supone/deber), 2ª persona → du sollst."},
+    {type:"fill",q:"___ du mir helfen? (können)",a:"Kannst",ex:"Pregunta con modal: verbo al principio → Kannst du …?"}],
+  trennbare:[
+    {type:"mc",q:"Ich ___ um 7 Uhr ___ (aufstehen).",choices:["stehe … auf","aufstehe","stehe auf","stehe"],correct:0,ex:"aufstehen = verbo separable: stehe … auf (prefijo al final)."},
+    {type:"fill",q:"Er ___ seinen Vater ___. (anrufen → él llama)",a:"ruft … an",ex:"anrufen: ruft … an (prefijo 'an' al final)."},
+    {type:"mc",q:"Wann ___ der Zug ___? (abfahren)",choices:["fährt … ab","abfährt","fährt ab","fährt"],correct:0,ex:"abfahren → fährt … ab."},
+    {type:"fill",q:"Ich ___ heute Abend ___. (fernsehen → yo veo la tele)",a:"sehe … fern",ex:"fernsehen: sehe … fern."},
+    {type:"mc",q:"Wir ___ die Wörter ___. (aufschreiben)",choices:["schreiben … auf","aufschreiben","schreiben auf","schreiben"],correct:0,ex:"aufschreiben → schreiben … auf."}],
+  praepositionen:[
+    {type:"mc",q:"Ich fahre ___ Berlin. (dirección a ciudad)",choices:["nach","in","zu","bei"],correct:0,ex:"nach + ciudades sin artículo: nach Berlin, nach Spanien."},
+    {type:"mc",q:"Er wohnt ___ dem Hotel.",choices:["in","nach","bei","zu"],correct:2,ex:"bei + persona o lugar: bei dem Hotel (= beim Hotel)."},
+    {type:"mc",q:"Wir gehen ___ der Schule. (dirección)",choices:["zu","nach","in","bei"],correct:0,ex:"zu + lugares con artículo: zur Schule (zu + der = zur)."},
+    {type:"fill",q:"Das Buch liegt ___ dem Tisch. (encima de)",a:"auf",ex:"auf + Dativo para posición estática: auf dem Tisch."},
+    {type:"mc",q:"Sie kommt ___ Spanien.",choices:["aus","von","nach","zu"],correct:0,ex:"aus = origen/procedencia: aus Spanien."},
+    {type:"fill",q:"Ich komme ___ dem Kino. (vengo de / procedencia lugar)",a:"aus",ex:"aus también para lugares: aus dem Kino (saliendo de)."}],
+  kasus:[
+    {type:"mc",q:"___ Hund bellt. (sujeto)",choices:["Der","Den","Dem","Des"],correct:0,ex:"Sujeto = Nominativ → der Hund (masculino)."},
+    {type:"mc",q:"Ich sehe ___ Hund.",choices:["der","den","dem","des"],correct:1,ex:"Objeto directo = Akkusativ → den Hund (masculino)."},
+    {type:"mc",q:"Ich gebe ___ Kind ein Buch.",choices:["das","dem","den","die"],correct:1,ex:"Objeto indirecto = Dativo → dem Kind (neutro)."},
+    {type:"fill",q:"Sie gibt ___ Frau die Tasche. (Dativo femenino)",a:"der",ex:"Dativo femenino: die → der Frau."},
+    {type:"mc",q:"Das ist das Haus ___ Frau.",choices:["den","der","dem","die"],correct:1,ex:"Genitivo femenino: die → der Frau (= de la mujer)."}],
+  plural:[
+    {type:"mc",q:"Plural de 'das Kind'",choices:["die Kinder","die Kinds","die Kinden","die Kinde"],correct:0,ex:"Kind → Kinder (añade -er)."},
+    {type:"mc",q:"Plural de 'die Frau'",choices:["die Frauen","die Fraus","die Fräue","die Fraue"],correct:0,ex:"Frau → Frauen (añade -en)."},
+    {type:"mc",q:"Plural de 'der Mann'",choices:["die Männer","die Manns","die Manner","die Männe"],correct:0,ex:"Mann → Männer (Umlaut + -er)."},
+    {type:"fill",q:"Singular 'das Buch' → Plural: 'die ___'",a:"Bücher",ex:"Buch → Bücher (Umlaut + -er)."},
+    {type:"mc",q:"Plural de 'die Mutter'",choices:["die Mütter","die Muttern","die Muttere","die Mutters"],correct:0,ex:"Mutter → Mütter (solo Umlaut)."},
+    {type:"fill",q:"Singular 'der Stuhl' → Plural: 'die ___'",a:"Stühle",ex:"Stuhl → Stühle (Umlaut + -e)."}],
+  adjektive:[
+    {type:"mc",q:"Das ist ein ___ Buch. (interesante)",choices:["interessantes","interessante","interessanter","interessantem"],correct:0,ex:"Neutro + artículo indefinido, Nominativ → -es."},
+    {type:"mc",q:"Der ___ Mann heißt Klaus. (viejo)",choices:["alte","alter","altes","altem"],correct:0,ex:"Después de artículo definido, masculino Nominativ → -e."},
+    {type:"fill",q:"Ich sehe den ___ Hund. (klein)",a:"kleinen",ex:"Artículo definido, Akkusativ masculino → -en."},
+    {type:"mc",q:"Sie wohnt in einer ___ Wohnung. (groß)",choices:["große","großen","großer","großes"],correct:1,ex:"Artículo indefinido, Dativo femenino → -en."}],
+  wortstellung:[
+    {type:"mc",q:"¿Cuál es la frase correcta?",choices:["Heute ich gehe ins Kino.","Heute gehe ich ins Kino.","Ich heute gehe ins Kino.","Gehe heute ich ins Kino."],correct:1,ex:"Verbo siempre en 2ª posición: Heute (1) — gehe (2) — ich (3)."},
+    {type:"mc",q:"¿Cuál es correcta con 'weil'?",choices:["Ich bleibe zu Hause, weil ich krank bin.","Ich bleibe zu Hause, weil bin ich krank.","Ich bleibe zu Hause, weil ich bin krank.","Weil krank ich bin, ich bleibe zu Hause."],correct:0,ex:"Con 'weil' (porque), el verbo conjugado va AL FINAL de la subordinada."},
+    {type:"fill",q:"Reordena (empieza con 'Jeden Tag'): ich / Deutsch / lerne / jeden Tag",a:"Jeden Tag lerne ich Deutsch.",ex:"Inversión: adverbio (1) — verbo (2) — sujeto (3)."},
+    {type:"mc",q:"Con verbos modales, el infinitivo va…",choices:["al principio","al final","después del sujeto","antes del modal"],correct:1,ex:"Ich kann heute nicht kommen. — Infinitivo SIEMPRE al final."}],
+  perfekt:[
+    {type:"mc",q:"Ich ___ Deutsch gelernt.",choices:["habe","bin","hat","ist"],correct:0,ex:"lernen usa haben → ich habe … gelernt."},
+    {type:"fill",q:"Er ___ nach Berlin gefahren.",a:"ist",ex:"fahren (movimiento con destino) usa sein → er ist … gefahren."},
+    {type:"mc",q:"Participio de 'sehen'",choices:["gesehen","geseehn","gesieht","gesah"],correct:0,ex:"sehen → gesehen (irregular)."},
+    {type:"fill",q:"Participio de 'machen' (regular)",a:"gemacht",ex:"Regular: ge- + Stamm + -t → gemacht."},
+    {type:"mc",q:"Wir ___ angekommen.",choices:["haben","hast","sind","hat"],correct:2,ex:"ankommen (llegar) usa sein → wir sind angekommen."},
+    {type:"fill",q:"Participio de 'schreiben'",a:"geschrieben",ex:"schreiben → geschrieben (irregular)."}],
+  praeteritum:[
+    {type:"mc",q:"Ich ___ gestern müde. (sein)",choices:["war","warst","waren","wart"],correct:0,ex:"sein Präteritum: ich war."},
+    {type:"fill",q:"Du ___ gestern in der Schule. (sein)",a:"warst",ex:"sein: ich war, du warst, er war…"},
+    {type:"mc",q:"Wir ___ keine Zeit. (haben)",choices:["hatte","hattest","hatten","hattet"],correct:2,ex:"haben Präteritum: wir hatten."},
+    {type:"fill",q:"Er ___ nach Hause. (gehen, Präteritum)",a:"ging",ex:"gehen Präteritum: ging, gingst, ging…"},
+    {type:"mc",q:"Sie ___ sehr gut. (schlafen, Präteritum, ella)",choices:["schlief","schliefst","schliefen","schlieft"],correct:0,ex:"schlafen Präteritum: schlief (ella)."}],
+  futur:[
+    {type:"mc",q:"Ich ___ morgen lernen.",choices:["werde","wirst","wird","werden"],correct:0,ex:"Futur I: werden + Infinitivo. Ich werde … lernen."},
+    {type:"fill",q:"Du ___ das schaffen! (werden)",a:"wirst",ex:"werden: ich werde, du wirst, er wird…"},
+    {type:"mc",q:"El infinitivo con werden va…",choices:["al principio","detrás de werden","al final","antes del sujeto"],correct:2,ex:"Ich werde morgen kommen. — Infinitivo al final."},
+    {type:"fill",q:"Wir ___ nach Berlin reisen. (werden)",a:"werden",ex:"werden, 1ª persona plural → werden."}],
+  negation:[
+    {type:"mc",q:"Ich habe ___ Zeit.",choices:["kein","keine","nicht","nein"],correct:1,ex:"Zeit es femenino → keine Zeit. kein/keine niega sustantivos."},
+    {type:"mc",q:"Er kommt ___ heute.",choices:["kein","keine","nicht","nein"],correct:2,ex:"nicht niega verbos y adjetivos."},
+    {type:"fill",q:"Ich habe ___ Bruder. (negar, masculino Akk.)",a:"keinen",ex:"Akkusativ masculino: kein → keinen Bruder."},
+    {type:"fill",q:"Das ist ___ richtig.",a:"nicht",ex:"nicht niega adjetivos predicativos."},
+    {type:"mc",q:"Ich esse ___ Fleisch. (nunca)",choices:["kein","nicht","nie","nein"],correct:2,ex:"nie = nunca. Posición: después del verbo conjugado."}],
+  w_fragen:[
+    {type:"mc",q:"'___ heißt du?' — 'Ich heiße Ana.'",choices:["Wie","Was","Wo","Wer"],correct:0,ex:"Wie = cómo. Wie heißt du? (¿Cómo te llamas?)"},
+    {type:"mc",q:"'___ kommst du?' — 'Aus Mexiko.'",choices:["Wo","Woher","Wohin","Wann"],correct:1,ex:"Woher = de dónde. Wohin = adónde."},
+    {type:"fill",q:"'___ ist das?' — 'Das ist mein Bruder.'",a:"Wer",ex:"Wer = quién (persona). Was = qué (cosa)."},
+    {type:"mc",q:"'___ kostet das?' — 'Fünf Euro.'",choices:["Wie viel","Was","Wer","Wo"],correct:0,ex:"Wie viel = cuánto. Wie viele = cuántos."},
+    {type:"fill",q:"'___ fährst du?' — 'Ich fahre nach Berlin.'",a:"Wohin",ex:"Wohin = adónde."},
+    {type:"mc",q:"'___ kommt der Bus?' — 'Um 8 Uhr.'",choices:["Wann","Wo","Wie","Wohin"],correct:0,ex:"Wann = cuándo."}]
+};
+const CONJ={
+  praesens:[
+    {q:"ich ___ (machen)",a:"mache",hint:"Verbos regulares: yo → -e"},
+    {q:"du ___ (machen)",a:"machst",hint:"tú → -st"},
+    {q:"er ___ (kommen)",a:"kommt",hint:"él/ella → -t"},
+    {q:"wir ___ (lernen)",a:"lernen",hint:"nosotros → -en"},
+    {q:"ihr ___ (spielen)",a:"spielt",hint:"vosotros → -t"},
+    {q:"ich ___ (sein)",a:"bin",hint:"sein es completamente irregular"},
+    {q:"du ___ (haben)",a:"hast",hint:"haben: ich habe, du hast, er hat…"},
+    {q:"er ___ (fahren)",a:"fährt",hint:"fahren: cambio a→ä en 2ª/3ª persona"},
+    {q:"du ___ (lesen)",a:"liest",hint:"lesen: cambio e→ie en 2ª/3ª persona"},
+    {q:"er ___ (schlafen)",a:"schläft",hint:"schlafen: cambio a→ä"},
+    {q:"ich ___ (aufstehen)",a:"stehe auf",hint:"Verbo separable: prefijo al final"},
+    {q:"sie ___ (sprechen)",a:"spricht",hint:"sprechen: cambio e→i"}],
+  perfekt:[
+    {q:"ich ___ gegessen. (auxiliar)",a:"habe",hint:"essen usa haben"},
+    {q:"er ___ gegangen. (auxiliar)",a:"ist",hint:"gehen usa sein"},
+    {q:"machen → Partizip II",a:"gemacht",hint:"Regular: ge- + Stamm + -t"},
+    {q:"kommen → Partizip II",a:"gekommen",hint:"ge- + kommen → gekommen"},
+    {q:"schreiben → Partizip II",a:"geschrieben",hint:"Irregular"},
+    {q:"ich ___ gefahren. (auxiliar)",a:"bin",hint:"fahren usa sein"},
+    {q:"sehen → Partizip II",a:"gesehen",hint:"irregular"},
+    {q:"essen → Partizip II",a:"gegessen",hint:"irregular"}],
+  praeteritum:[
+    {q:"ich ___ (sein, Präteritum)",a:"war",hint:"sein: war, warst, war, waren…"},
+    {q:"du ___ (sein, Präteritum)",a:"warst",hint:"sein: ich war, du warst…"},
+    {q:"wir ___ (haben, Präteritum)",a:"hatten",hint:"haben: hatte, hattest, hatte, hatten…"},
+    {q:"er ___ (kommen, Präteritum)",a:"kam",hint:"kommen: kam, kamst, kam…"},
+    {q:"ich ___ (gehen, Präteritum)",a:"ging",hint:"gehen: ging, gingst, ging…"},
+    {q:"sie ___ (schlafen, Präteritum)",a:"schlief",hint:"schlafen: schlief…"}],
+  futur:[
+    {q:"Ich ___ morgen lernen. (werden)",a:"werde",hint:"werden + Infinitivo al final"},
+    {q:"Du ___ das schaffen. (werden)",a:"wirst",hint:"ich werde, du wirst, er wird…"},
+    {q:"Er ___ kommen. (werden)",a:"wird",hint:"3ª persona → wird"},
+    {q:"Wir ___ reisen. (werden)",a:"werden",hint:"1ª persona plural → werden"},
+    {q:"Ihr ___ gewinnen. (werden)",a:"werdet",hint:"2ª persona plural → werdet"}]
+};
+const WORD_ORDER_EX=[
+  {words:["Heute","gehe","ich","ins","Kino"],correct:"Heute gehe ich ins Kino",hint:"Verbo en 2ª posición"},
+  {words:["Ich","lerne","jeden","Tag","Deutsch"],correct:"Ich lerne jeden Tag Deutsch",hint:"Sujeto + verbo + complementos"},
+  {words:["Wann","kommst","du","nach","Hause"],correct:"Wann kommst du nach Hause",hint:"W-Wort + verbo + sujeto"},
+  {words:["Er","kann","gut","Spanisch","sprechen"],correct:"Er kann gut Spanisch sprechen",hint:"Modal: infinitivo al final"},
+  {words:["Ich","stehe","um","7","Uhr","auf"],correct:"Ich stehe um 7 Uhr auf",hint:"Verbo separable: prefijo al final"},
+  {words:["Sie","kommt","nicht","heute"],correct:"Sie kommt nicht heute",hint:"'nicht' después del verbo"},
+  {words:["Ich","habe","das","Buch","gelesen"],correct:"Ich habe das Buch gelesen",hint:"Perfecto: auxiliar en 2ª + Partizip al final"},
+  {words:["Wir","werden","morgen","nach","Berlin","fahren"],correct:"Wir werden morgen nach Berlin fahren",hint:"Futuro: infinitivo al final"},
+  {words:["Gibt","es","hier","eine","Apotheke"],correct:"Gibt es hier eine Apotheke",hint:"Pregunta sí/no: verbo primero"}
+];
+
+const VOCAB_THEMES=UNITS.map(u=>({id:u.id,label:u.name,icon:u.gemEmoji,desc:u.theme}));
+const GRAMMAR_THEMES=[
+  {id:"artikel",label:"Artículos der/die/das + casos",icon:"📋",desc:"Nominativ, Akkusativ, Dativ"},
+  {id:"sein_haben",label:"sein y haben",icon:"⚖️",desc:"Los verbos esenciales"},
+  {id:"modalverben",label:"Verbos modales",icon:"🔑",desc:"können, müssen, wollen…"},
+  {id:"trennbare",label:"Verbos separables",icon:"✂️",desc:"aufstehen, anrufen…"},
+  {id:"praepositionen",label:"Preposiciones",icon:"📍",desc:"nach, bei, zu, aus, in…"},
+  {id:"kasus",label:"Los 4 casos",icon:"🗂️",desc:"Nominativ/Akkusativ/Dativ/Genitiv"},
+  {id:"plural",label:"Plural de sustantivos",icon:"🔢",desc:"Kinder, Frauen, Bücher…"},
+  {id:"adjektive",label:"Adjetivos declinados",icon:"🎨",desc:"ein gutes Buch, der alte Mann"},
+  {id:"wortstellung",label:"Orden de palabras",icon:"🔀",desc:"Verbo en 2ª posición, weil…"},
+  {id:"perfekt",label:"Perfecto",icon:"📅",desc:"habe/bin + Partizip II"},
+  {id:"praeteritum",label:"Pretérito (Präteritum)",icon:"🌫️",desc:"war, hatte, ging…"},
+  {id:"futur",label:"Futuro (Futur I)",icon:"🔮",desc:"werden + Infinitivo"},
+  {id:"negation",label:"Negación",icon:"🚫",desc:"nicht, kein/keine, nie"},
+  {id:"w_fragen",label:"Preguntas con W-Wörter",icon:"❓",desc:"Wer, Was, Wo, Wann, Wie…"}
+];
+const KONJUG_THEMES=[
+  {id:"praesens",label:"Präsens",icon:"🟢",desc:"Presente"},
+  {id:"perfekt",label:"Perfekt",icon:"📅",desc:"Pasado compuesto"},
+  {id:"praeteritum",label:"Präteritum",icon:"🌫️",desc:"Pasado simple"},
+  {id:"futur",label:"Futur I",icon:"🔮",desc:"Futuro con werden"}
+];
+const DIALOG_SCENARIOS=[
+  {title:"Presentarse",char:"Klaus",situation:"primer día de clase de alemán"},
+  {title:"En el restaurante",char:"Kellner",situation:"restaurante alemán, pedir comida"},
+  {title:"Pedir direcciones",char:"Passant",situation:"calle en Berlín, buscar el Bahnhof"},
+  {title:"En la tienda",char:"Verkäufer",situation:"tienda de ropa, preguntar precio"},
+  {title:"Reservar hotel",char:"Rezeptionist",situation:"recepción de hotel en Múnich"},
+  {title:"En el médico",char:"Arzt",situation:"consulta médica, describir síntomas"},
+  {title:"Entrevista de trabajo",char:"Chef",situation:"entrevista de trabajo en Hamburgo"}
+];
+
+let S={nickname:"",xp:0,streak:0,lastPlayed:null,exercises_done:0,unit_progress:{},weak_words:[],badges:[],onboarded:false,word_stats:{},topic_stats:{},weekly_log:{},session_history:[],daily:{date:"",done:0,goal:5},mode_counts:{},perfect_rounds:0};
+let ses={exs:[],idx:0,correct:0,xp:0,mode:"",unitId:null,topicId:null,_results:[]};
+let selChoice=-1,_currentAudioText="";
+const GEM_COLORS=["#FF2D55","#0A84FF","#30D158","#BF5AF2","#FFD60A","#FF375F","#FF9500","#C8E6FF"];
+function save(){try{localStorage.setItem("gemdeutsch2",JSON.stringify(S));}catch(e){}}
+function load(){try{const d=localStorage.getItem("gemdeutsch2");if(d)S={...S,...JSON.parse(d)};}catch(e){}}
+load();
+
+document.addEventListener("DOMContentLoaded",function(){
+  initGems();
+  var nicEl=document.getElementById("nic");
+  if(nicEl&&S.nickname)nicEl.value=S.nickname;
+  if(nicEl)nicEl.addEventListener("keydown",function(e){if(e.key==="Enter")startApp();});
+  if(S.nickname&&S.exercises_done>0){updateStreak();showScreen("home");}
+  else{showScreen("welcome");}
+});
+
+function speak(t){if(!t||!window.speechSynthesis)return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang="de-DE";u.rate=0.85;const v=window.speechSynthesis.getVoices().find(x=>x.lang.startsWith("de"));if(v)u.voice=v;window.speechSynthesis.speak(u);}
+function speakCurrent(){speak(_currentAudioText);}
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById("screen-"+id).classList.add("active");
+  if(id==="home"){renderHome();renderGoal();renderWotd();}
+  if(id==="units")renderUnitsList();
+  if(id==="profile")renderProfile();
+  document.querySelectorAll(".nbtn").forEach(b=>b.classList.remove("active"));
+  const m={home:0,units:1,profile:2};
+  if(m[id]!==undefined)document.querySelectorAll(".nbtn")[m[id]]?.classList.add("active");
+}
+function startApp(){const n=document.getElementById("nic").value.trim();if(n)S.nickname=n;else if(!S.nickname)S.nickname="Jugador";updateStreak();save();if(!S.onboarded)showScreen("onboard");else showScreen("home");}
+let obIdx=0;
+function obNext(){if(obIdx<2){document.getElementById("ob"+obIdx).classList.remove("active");document.getElementById("dot"+obIdx).classList.remove("active");obIdx++;document.getElementById("ob"+obIdx).classList.add("active");document.getElementById("dot"+obIdx).classList.add("active");if(obIdx===2)document.getElementById("ob-btn").textContent="¡Spielen! →";}else{S.onboarded=true;save();showScreen("home");}}
+function updateStreak(){const today=new Date().toDateString();if(S.lastPlayed===today)return;const yest=new Date(Date.now()-86400000).toDateString();S.streak=S.lastPlayed===yest?S.streak+1:1;S.lastPlayed=today;}
+function renderHome(){
+  document.getElementById("h-name").textContent=S.nickname;
+  document.getElementById("h-xp").textContent=S.xp;
+  document.getElementById("h-str").textContent=S.streak;
+  const sn=document.getElementById("sn");if(sn)sn.textContent=S.streak||0;
+  const grid=document.getElementById("ugrid");grid.innerHTML="";
+  UNITS.forEach(u=>{
+    const p=S.unit_progress[u.id]||{done:0};const pct=Math.min(100,(p.done||0)*10);
+    const chip=document.createElement("div");chip.className="uchip"+(pct>=100?" done":pct>0?" going":"");
+    chip.style.borderColor=pct>0?u.gemColor:"transparent";
+    if(pct>0)chip.style.boxShadow="0 0 10px "+u.gemColor+"35";
+    const gemEl=document.createElement("div");gemEl.className="ce-gem";gemEl.innerHTML=gemSVG(u.gemType,28);
+    const labelEl=document.createElement("div");labelEl.className="cl";labelEl.style.color=pct>0?u.gemColor:"";labelEl.textContent=u.id===0?"Intro":"U"+u.id;
+    const themeEl=document.createElement("div");themeEl.className="ct";themeEl.textContent=u.short||"";
+    chip.appendChild(gemEl);chip.appendChild(labelEl);chip.appendChild(themeEl);
+    chip.onclick=()=>startUnit(u.id);grid.appendChild(chip);
+  });
+}
+function renderGoal(){
+  if(!S.daily)S.daily={date:"",done:0,goal:5};
+  const today=new Date().toDateString();if(S.daily.date!==today){S.daily.date=today;S.daily.done=0;}
+  const pct=Math.min(100,Math.round(S.daily.done/S.daily.goal*100));
+  const cur=Math.min(S.daily.done,S.daily.goal);
+  const msgs=[[0,"¡Empieza hoy — incluso 3 preguntas cuentan!"],[20,"¡Buen comienzo!"],[40,"¡Vas por buen camino! 💪"],[60,"¡Más de la mitad!"],[80,"¡Casi lo tienes!"],[100,"🎉 ¡Objetivo diario conseguido!"]];
+  const msg=msgs.reduce((a,m)=>pct>=m[0]?m:a,msgs[0]);
+  const el=id=>document.getElementById(id);
+  if(el("goal-cur"))el("goal-cur").textContent=cur;
+  if(el("goal-max"))el("goal-max").textContent=S.daily.goal;
+  if(el("goal-fill"))el("goal-fill").style.width=pct+"%";
+  if(el("goal-msg"))el("goal-msg").textContent=msg[1];
+}
+function renderWotd(){
+  const allV=[];UNITS.forEach(u=>u.vocab.forEach(v=>allV.push({...v,uid:u.id})));
+  const w=allV[Math.floor(Date.now()/86400000)%allV.length];
+  const de=document.getElementById("wotd-de"),es=document.getElementById("wotd-es");
+  if(de)de.textContent=w.de;if(es)es.textContent="→ "+w.es;
+}
+function startWotd(){
+  const allV=[];UNITS.forEach(u=>u.vocab.forEach(v=>allV.push({...v,unit:u.id})));
+  const w=allV[Math.floor(Date.now()/86400000)%allV.length];
+  const unit=UNITS[w.unit]||UNITS[0];
+  ses={exs:[mkVocEx(w,unit),mkVocEx(w,unit)],idx:0,correct:0,xp:0,mode:"wotd",unitId:null,_results:[]};launch();
+}
+function renderUnitsList(){
+  document.getElementById("u-xp").textContent=S.xp;
+  const l=document.getElementById("ulist");l.innerHTML="";
+  UNITS.forEach(u=>{
+    const p=S.unit_progress[u.id]||{done:0};const pct=Math.min(100,(p.done||0)*10);
+    const d=document.createElement("div");d.className="ulist-item";d.style.borderLeft="3px solid "+u.gemColor;
+    const gemDiv=document.createElement("div");gemDiv.style.flexShrink="0";gemDiv.innerHTML=gemSVG(u.gemType,36);d.appendChild(gemDiv);
+    const info=document.createElement("div");info.className="ulinfo";info.innerHTML=`<div class="uln">${u.name}</div><div class="ult">${u.short||u.theme||""}</div><div class="upbar"><div class="upfill" style="width:${pct}%;background:${u.gemColor}"></div></div>`;d.appendChild(info);
+    const cnt=document.createElement("span");cnt.style.cssText="font-size:.75rem;color:var(--txt2)";cnt.textContent=(p.done||0)+"×";d.appendChild(cnt);
+    d.onclick=()=>startUnit(u.id);l.appendChild(d);
+  });
+}
+let mMode="";
+function openModal(mode){
+  mMode=mode;
+  const titleMap={vocab:"Vocabulario",grammar:"Gramática",konjug:"Conjugación"};
+  document.getElementById("mtitle").textContent=titleMap[mode]||"Tema";
+  const l=document.getElementById("tlist");l.innerHTML="";
+  const items=mode==="grammar"?GRAMMAR_THEMES:mode==="konjug"?KONJUG_THEMES:VOCAB_THEMES;
+  items.forEach(t=>{
+    const d=document.createElement("div");d.className="titem";
+    d.innerHTML=`<span class="ti">${t.icon}</span><div><div class="tn">${t.label}</div><div class="td">${t.desc||""}</div></div>`;
+    d.onclick=()=>{closeModalDirect();if(mode==="grammar")startGrammar(t.id);else if(mode==="konjug")startKonjug(t.id);else startVocabTheme(t.id);};
+    l.appendChild(d);
+  });
+  document.getElementById("modal").classList.add("open");
+}
+function closeModal(e){if(e.target===document.getElementById("modal"))closeModalDirect();}
+function closeModalDirect(){document.getElementById("modal").classList.remove("open");}
+function startUnit(uid){
+  const unit=UNITS[uid];let pool=[...unit.vocab];
+  const weak=S.weak_words.filter(w=>w.unit!==uid).slice(0,3);
+  weak.forEach(w=>pool.push({...w,review:true}));
+  if(uid>1){const prev=UNITS[Math.max(0,uid-2)];prev.vocab.slice(0,3).forEach(w=>pool.push({...w,review:true}));}
+  const weighted=getWeightedVocab(pool,9);
+  if(weighted[0]&&!weighted[0].type){
+    const v=weighted[0];const dist=getDistractors(v.es,3,"es");const ch=shuffle([v.es,...dist]);
+    weighted[0]={type:"mc",q:v.de,qLabel:"¿Cómo se dice en español?",choices:ch,correct:ch.indexOf(v.es),explain:v.de+" = "+v.es,vocab:v,_wasEasy:true};
+  }
+  ses={exs:weighted.map((v,i)=>i===0&&v.type?v:mkVocEx(v,unit)),idx:0,correct:0,xp:0,mode:"unit",unitId:uid,_results:[]};launch();
+}
+function startVocabTheme(uid){
+  const u=UNITS[uid];let pool=[...u.vocab];
+  if(uid>0)pool=pool.concat(UNITS[uid-1].vocab.slice(0,5));
+  shuffle(pool);ses={exs:pool.slice(0,9).map(v=>mkVocEx(v,u)),idx:0,correct:0,xp:0,mode:"vocab",unitId:uid,_results:[]};launch();
+}
+function startGrammar(tid){
+  const exs=GRAMEX[tid]||[];if(!exs.length){alert("¡Próximamente!");return;}
+  ses={exs:shuffle([...exs]).slice(0,7),idx:0,correct:0,xp:0,mode:"grammar",unitId:null,topicId:tid,_results:[]};launch();
+}
+function startKonjug(tid){
+  const exs=(CONJ[tid]||[]).map(e=>({type:"fill",q:e.q,a:e.a,explain:e.hint,hint:e.hint}));
+  if(!exs.length){alert("¡Próximamente!");return;}
+  ses={exs:shuffle([...exs]).slice(0,8),idx:0,correct:0,xp:0,mode:"konjug",unitId:null,topicId:tid,_results:[]};launch();
+}
+function startWordOrder(){
+  const exs=shuffle([...WORD_ORDER_EX]).slice(0,6).map(e=>({type:"word_order",...e}));
+  ses={exs,idx:0,correct:0,xp:0,mode:"orden",unitId:null,_results:[]};launch();
+}
+function startReview(){
+  if(!S.weak_words.length){startUnit(0);return;}
+  const pool=[...S.weak_words];shuffle(pool);
+  ses={exs:pool.slice(0,9).map(v=>mkVocEx(v,UNITS[v.unit||0])),idx:0,correct:0,xp:0,mode:"review",unitId:null,_results:[]};launch();
+}
+function startQuick(){
+  let pool=[];UNITS.slice(0,4).forEach(u=>pool=pool.concat(u.vocab.map(v=>({...v,unit:u.id}))));
+  shuffle(pool);const picks=[];const seen=new Set();
+  for(const v of pool){if(!seen.has(v.de)){seen.add(v.de);picks.push(v);}if(picks.length>=3)break;}
+  const exs=picks.map((v,i)=>{
+    if(i===0){const dist=getDistractors(v.es,3,"es");const ch=shuffle([v.es,...dist]);return{type:"mc",q:v.de,qLabel:"¿En español?",choices:ch,correct:ch.indexOf(v.es),explain:v.de+" = "+v.es,vocab:v};}
+    return mkVocEx(v,UNITS[v.unit||0]);
+  });
+  ses={exs,idx:0,correct:0,xp:0,mode:"quick",unitId:null,_results:[]};launch();
+}
+async function startDialog(){
+  const uid=Math.min(8,Object.keys(S.unit_progress).length);
+  const scenario={...DIALOG_SCENARIOS[Math.min(uid,DIALOG_SCENARIOS.length-1)]};
+  scenario._errorProfile=getErrorProfileSummary();
+  ses={exs:[{type:"dialog",scenario}],idx:0,correct:0,xp:0,mode:"dialog",unitId:null,_results:[]};launch();
+}
+function mkVocEx(v,unit){
+  const hasArt=v.art&&(v.typ==="m"||v.typ==="f"||v.typ==="n");
+  if(Math.random()<.5){
+    const dist=getDistractors(v.es,3,"es");const ch=shuffle([v.es,...dist]);
+    return{type:"mc",q:v.de,qLabel:"¿Cómo se dice en español?",choices:ch,correct:ch.indexOf(v.es),explain:v.de+" = "+v.es,vocab:v,review:v.review,hasArt,art:v.art};
+  }
+  return{type:"fill",q:v.es,qLabel:"Escribe en alemán (incluye el artículo si es sustantivo):",a:v.de.toLowerCase().trim(),explain:v.es+" = "+v.de,vocab:v,review:v.review,hasArt,art:v.art};
+}
+function getDistractors(correct,n,lang){
+  let pool=[];UNITS.forEach(u=>pool=pool.concat(u.vocab.map(v=>lang==="es"?v.es:v.de)));
+  pool=pool.filter(d=>d!==correct);shuffle(pool);return pool.slice(0,n);
+}
+function getWeightedVocab(pool,n){
+  const weighted=[];
+  pool.forEach(v=>{const stat=S.word_stats[v.de];const copies=stat?Math.max(1,Math.min(4,Math.ceil(stat.weight))):1;for(let i=0;i<copies;i++)weighted.push(v);});
+  shuffle(weighted);const seen=new Set();const result=[];
+  for(const v of weighted){if(!seen.has(v.de)){seen.add(v.de);result.push(v);}if(result.length>=n)break;}
+  for(const v of pool){if(!seen.has(v.de)){seen.add(v.de);result.push(v);}if(result.length>=n)break;}
+  return result.slice(0,n);
+}
+function launch(){showScreen("exercise");renderEx();}
+function renderEx(){
+  const ex=ses.exs[ses.idx];const tot=ses.exs.length;
+  document.getElementById("epf").style.width=(ses.idx/tot*100)+"%";
+  document.getElementById("xpind").textContent=ses.xp+" XP";
+  const bchk=document.getElementById("bchk"),bnxt=document.getElementById("bnxt");
+  bchk.style.display="block";bnxt.style.display="none";bchk.disabled=true;bchk.textContent="Comprobar";selChoice=-1;
+  _currentAudioText=ex.vocab?ex.vocab.de:(ex.type==="word_order"?ex.correct:(ex.q||""));
+  const audioBtn=document.getElementById("audio-btn");if(audioBtn)audioBtn.style.display=window.speechSynthesis?"block":"none";
+  if(ex.type==="dialog"){renderDialog(ex.scenario);return;}
+  if(ex.type==="word_order"){renderWordOrder(ex);return;}
+  const isFirst=ses.idx===0;
+  let html=`<div class="ex-tag">${ex.review?"🔄 Repaso":ex.type==="mc"?"📖 Traducción":"✏️ Escribe"}`;
+  if(isFirst&&ex._wasEasy)html+=`<span class="ex-easy-badge">Fácil para empezar</span>`;
+  html+="</div>";
+  if(ex.hasArt&&ex.type==="fill"){
+    const ac={der:"#0A84FF",die:"#FF2D55",das:"#30D158"};const col=ac[ex.art]||"var(--amethyst)";
+    html+=`<div class="ex-artikel-hint">💡 Sustantivo <strong style="color:${col}">${ex.art}</strong> (${ex.art==="der"?"masculino":ex.art==="die"?"femenino":"neutro"}) — inclúyelo en tu respuesta</div>`;
+  }
+  html+=`<div class="ex-q">${ex.q}</div>`;
+  if(ex.hint)html+=`<div class="ex-hint">💡 ${ex.hint}</div>`;
+  else if(ex.qLabel)html+=`<div class="ex-hint">${ex.qLabel}</div>`;
+  if(ex.type==="mc"){
+    html+=`<div class="cgrid">${ex.choices.map((c,i)=>`<button class="cbtn" onclick="selCh(${i})">${c}</button>`).join("")}</div>`;
+  }else{
+    html+=`<input class="finp" id="finp" type="text" placeholder="Tu respuesta en alemán…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+    <div class="schars">${["ä","ö","ü","Ä","Ö","Ü","ß"].map(c=>`<button class="sbtn" onclick="ins('${c}')">${c}</button>`).join("")}</div>`;
+  }
+  html+=`<div class="fbpanel" id="fbp"></div>`;
+  document.getElementById("exbody").innerHTML=html;
+  if(ex.type==="fill"){
+    const inp=document.getElementById("finp");inp.focus();
+    inp.addEventListener("input",()=>{bchk.disabled=!inp.value.trim();});
+    inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&!bchk.disabled)checkAnswer();});
+  }
+}
+let woPlaced=[];
+function renderWordOrder(ex){
+  woPlaced=[];_currentAudioText=ex.correct;
+  const bchk=document.getElementById("bchk");bchk.disabled=true;
+  const shuffled=[...ex.words];shuffle(shuffled);
+  document.getElementById("exbody").innerHTML=`
+    <div class="ex-tag">🧩 Orden de palabras</div>
+    <div class="ex-hint">${ex.hint||"Forma la frase correcta"}</div>
+    <div class="word-order-area">
+      <div style="font-size:.78rem;color:var(--txt2);margin-bottom:.25rem">Tu frase:</div>
+      <div class="word-slots" id="wo-slots"></div>
+      <div style="font-size:.78rem;color:var(--txt2);margin:.4rem 0 .25rem">Palabras disponibles:</div>
+      <div class="word-bank" id="wo-bank">${shuffled.map((w,i)=>`<div class="word-chip" id="wc-${i}" onclick="woPickWord('${w.replace(/'/g,"\\'")}',${i})">${w}</div>`).join("")}</div>
+    </div>
+    <div class="fbpanel" id="fbp"></div>`;
+}
+function woPickWord(word,idx){
+  const chip=document.getElementById("wc-"+idx);if(!chip||chip.classList.contains("placed"))return;
+  chip.classList.add("placed");woPlaced.push({word,idx});renderWoSlots();
+  document.getElementById("bchk").disabled=false;
+}
+function renderWoSlots(){
+  const slots=document.getElementById("wo-slots");if(!slots)return;
+  slots.innerHTML=woPlaced.map((p,i)=>`<div class="word-chip placed" onclick="woRemoveWord(${i})">${p.word}</div>`).join("");
+  slots.classList.toggle("has-words",woPlaced.length>0);
+}
+function woRemoveWord(i){
+  const p=woPlaced[i];woPlaced.splice(i,1);
+  const chip=document.getElementById("wc-"+p.idx);if(chip)chip.classList.remove("placed");
+  renderWoSlots();document.getElementById("bchk").disabled=woPlaced.length===0;
+}
+function checkWordOrder(){
+  const ex=ses.exs[ses.idx];
+  const userSentence=woPlaced.map(p=>p.word).join(" ");
+  const ok=norm(userSentence)===norm(ex.correct);
+  document.querySelectorAll("#wo-slots .word-chip").forEach(c=>{c.classList.add(ok?"ok-chip":"bad-chip");c.onclick=null;});
+  document.querySelectorAll("#wo-bank .word-chip").forEach(c=>c.onclick=null);
+  if(navigator.vibrate)navigator.vibrate(ok?[30]:[80,30,80]);
+  const xg=ok?12:2;ses.xp+=xg;if(ok)ses.correct++;
+  animateXP(document.getElementById("xpind"),ses.xp-xg,ses.xp);
+  if(ok)triggerGemEffect();
+  speak(ex.correct);
+  const fb=document.getElementById("fbp");fb.className="fbpanel "+(ok?"ok":"bad")+" show";
+  const woGemSVG=ok?gemSVG("diamond",32):"";
+  fb.innerHTML=ok
+    ?`<div class="fb-row"><div class="fb-gem-earned">${woGemSVG}</div><div class="fb-text"><h4>¡Perfecto! La frase es correcta.</h4><p><em>${ex.correct}</em></p></div></div>`
+    :`<div class="fb-row"><span style="font-size:1.9rem;flex-shrink:0">🔴</span><div class="fb-text"><h4>¡Casi! Orden incorrecto.</h4><p><strong>Correcto:</strong> <em>${ex.correct}</em></p><p style="margin-top:.25rem;font-size:.82rem">${ex.hint||""}</p></div></div>`;
+  document.getElementById("bchk").style.display="none";document.getElementById("bnxt").style.display="block";
+}
+function checkAnswer(){
+  const ex=ses.exs[ses.idx];
+  if(ex.type==="word_order"){checkWordOrder();return;}
+  const fb=document.getElementById("fbp");let ok=false;
+  if(ex.type==="mc"){
+    ok=selChoice===ex.correct;
+    document.querySelectorAll(".cbtn").forEach((b,i)=>{b.disabled=true;if(i===ex.correct)b.classList.add("ok");else if(i===selChoice&&!ok)b.classList.add("bad");});selChoice=-1;
+  }else{
+    const inp=document.getElementById("finp");
+    const ua=norm(inp.value),ca=norm(ex.a||"");
+    ok=ua===ca||ca.split("/").some(p=>norm(p)===ua);
+    inp.disabled=true;inp.classList.add(ok?"ok":"bad");
+  }
+  if(navigator.vibrate)navigator.vibrate(ok?[30]:[80,30,80]);
+  const xg=ok?10:2;ses.xp+=xg;if(ok)ses.correct++;
+  animateXP(document.getElementById("xpind"),ses.xp-xg,ses.xp);
+  trackAnswer(ex,ok);
+  if(!ok&&ex.vocab){const ww={...ex.vocab,unit:ses.unitId||0};if(!S.weak_words.find(w=>w.de===ww.de)){S.weak_words.unshift(ww);if(S.weak_words.length>30)S.weak_words.pop();}}
+  if(ok)triggerGemEffect();
+  if(ex.vocab)speak(ex.vocab.de);
+  const okMsgs=[["💎","¡Ausgezeichnet! +"+xg+" XP"],["🔮","¡Muy bien!"],["⚡","¡Perfecto!"],["💠","¡Correcto!"],["✨","¡Wunderbar!"]];
+  const badMsgs=[["🔴","¡Casi! Recuérdalo."],["🟣","¡Ánimo!"],["💡","Sigue intentándolo."],["🔵","¡Tú puedes!"]];
+  const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
+  const [mic,mtxt]=ok?pick(okMsgs):pick(badMsgs);
+  const correctAns=ex.type==="fill"?(ex.a||""):ex.choices[ex.correct];
+  fb.className="fbpanel "+(ok?"ok":"bad")+" show";
+  const earnedGemSVG=ok?gemSVG(GEM_SEQ[Math.floor(Math.random()*6)],32):"";
+  fb.innerHTML=ok
+    ?`<div class="fb-row"><div class="fb-gem-earned">${earnedGemSVG}</div><div class="fb-text"><h4>${mtxt}</h4><p>${ex.explain||""}</p></div></div>`
+    :`<div class="fb-row"><span style="font-size:1.9rem;flex-shrink:0">${mic}</span><div class="fb-text"><h4>${mtxt}</h4><p><strong>Correcto:</strong> ${correctAns}</p>${ex.explain?`<p style="margin-top:.25rem;font-size:.82rem">${ex.explain}</p>`:""}</div></div>`;
+  document.getElementById("bchk").style.display="none";document.getElementById("bnxt").style.display="block";
+}
+function norm(s){return(s||"").toLowerCase().trim().replace(/\s+/g," ");}
+function ins(c){const inp=document.getElementById("finp");if(!inp)return;const p=inp.selectionStart;inp.value=inp.value.slice(0,p)+c+inp.value.slice(inp.selectionEnd);inp.setSelectionRange(p+1,p+1);inp.focus();document.getElementById("bchk").disabled=false;}
+function selCh(i){selChoice=i;document.querySelectorAll(".cbtn").forEach((b,j)=>{b.classList.toggle("selected",j===i);b.style.borderColor="";b.style.background="";});document.getElementById("bchk").disabled=false;}
+function nextEx(){ses.idx++;if(ses.idx>=ses.exs.length)finishSes();else renderEx();}
+async function renderDialog(scenario){
+  const bchk=document.getElementById("bchk");bchk.style.display="none";document.getElementById("bnxt").style.display="none";
+  document.getElementById("exbody").innerHTML=`<span class="ai-chip">✨ Diálogo con IA</span><div class="ex-tag">💬 ${scenario.title}</div><div class="ex-hint">${scenario.situation}</div><div class="dialog-box" id="dbox"><div class="db-title">Conversación</div><div class="dots-row"><div class="dots"><span></span><span></span><span></span></div>Generando…</div></div><div class="fbpanel" id="fbp"></div>`;
+  try{
+    const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,
+    system:`Eres un asistente de enseñanza de alemán para hispanohablantes A1-A2. ${scenario._errorProfile?"Errores: "+scenario._errorProfile+". Inclúyelos.":""} Genera un diálogo alemán (3-4 turnos) con traducción al español. SOLO JSON: {"dialog":[{"speaker":"${scenario.char}","text":"...","translation":"..."},...], "task":"...", "tip":"..."}`,
+    messages:[{role:"user",content:"Escenario: "+scenario.situation+". A1-A2. Solo JSON."}]})});
+    const data=await resp.json();
+    const txt=data.content?.map(i=>i.text||"").join("").replace(/```json|```/g,"").trim();
+    renderDialogContent(JSON.parse(txt),scenario);
+  }catch(e){renderDialogFallback(scenario);}
+}
+function renderDialogContent(d,scenario){
+  let msgs="";
+  d.dialog.forEach(m=>{msgs+=`<div class="dialog-msg de"><div><div class="dm-speaker">${m.speaker}</div><div class="dm-bubble">${m.text}<br><span style="opacity:.55;font-size:.8em;font-style:italic">${m.translation||""}</span></div></div></div>`;});
+  document.getElementById("dbox").innerHTML=`<div class="db-title">💬 ${scenario.title}</div>${msgs}<div class="dialog-task"><p>${d.task||"¡Responde en alemán!"}</p>${d.tip?`<p style="font-size:.76rem;color:var(--txt2);margin-top:.28rem">${d.tip}</p>`:""}<input class="dtinp" id="dtinp" type="text" placeholder="Tu respuesta en alemán…" autocorrect="off" autocapitalize="off" spellcheck="false"/></div>`;
+  const bchk=document.getElementById("bchk");bchk.style.display="block";bchk.disabled=false;bchk.textContent="Enviar respuesta";bchk.onclick=()=>checkDialogAnswer(d,scenario);
+}
+function renderDialogFallback(scenario){
+  const fb={0:{dialog:[{speaker:"Klaus",text:"Hallo! Ich heiße Klaus. Wie heißt du?",translation:"¡Hola! Me llamo Klaus. ¿Cómo te llamas?"}],task:"Preséntate: nombre y origen.",tip:"Ich heiße … / Ich komme aus …"},1:{dialog:[{speaker:"Kellner",text:"Guten Tag! Was möchten Sie trinken?",translation:"¡Buenas tardes! ¿Qué desea beber?"}],task:"Pide algo de beber.",tip:"Ich möchte … bitte."},2:{dialog:[{speaker:"Passant",text:"Entschuldigung, wo ist der Bahnhof?",translation:"Disculpe, ¿dónde está la estación?"}],task:"Da una indicación de dirección.",tip:"Geradeaus / Links / Rechts"}};
+  renderDialogContent(fb[Math.min((scenario.unit||0),2)],scenario);
+}
+async function checkDialogAnswer(d,scenario){
+  const ans=document.getElementById("dtinp")?.value||"";if(!ans.trim())return;
+  const bchk=document.getElementById("bchk");bchk.disabled=true;bchk.textContent="Evaluando…";
+  try{
+    const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:250,
+    system:"Eres un profesor amigable de alemán para hispanohablantes A1-A2. Evalúa la respuesta: ¿comprensible? ¿qué está bien? ¿qué mejorar? Un ejemplo correcto. En español, máx 3 frases.",
+    messages:[{role:"user",content:"Escenario: "+scenario.situation+". Respuesta: \""+ans+"\"."}]})});
+    const data=await resp.json();
+    const feedback=data.content?.map(i=>i.text||"").join("")||"¡Gut gemacht!";
+    ses.correct++;ses.xp+=15;triggerGemEffect();
+    document.getElementById("fbp").className="fbpanel ok show";
+    document.getElementById("fbp").innerHTML=`<div class="mascot-row"><span class="mascot bounce">💎</span><div><h4>✅ Feedback de la IA</h4><p>${feedback}</p></div></div>`;
+    bchk.style.display="none";document.getElementById("bnxt").style.display="block";
+  }catch(e){
+    ses.correct++;ses.xp+=15;
+    document.getElementById("fbp").className="fbpanel ok show";
+    document.getElementById("fbp").innerHTML=`<div class="mascot-row"><span class="mascot bounce">⚡</span><div><h4>✅ ¡Sehr gut!</h4><p>Respuesta registrada. ¡Sigue practicando!</p></div></div>`;
+    bchk.style.display="none";document.getElementById("bnxt").style.display="block";
+  }
+}
+function finishSes(){
+  const tot=ses.exs.length,acc=Math.round(ses.correct/tot*100);
+  S.xp+=ses.xp;S.exercises_done+=tot;
+  if(!S.mode_counts)S.mode_counts={};S.mode_counts[ses.mode]=(S.mode_counts[ses.mode]||0)+1;
+  if(acc===100){if(!S.perfect_rounds)S.perfect_rounds=0;S.perfect_rounds++;}
+  if(!S.daily)S.daily={date:"",done:0,goal:5};
+  const today=new Date().toDateString();if(S.daily.date!==today){S.daily.date=today;S.daily.done=0;}
+  const prevDone=S.daily.done;S.daily.done+=ses.exs.length;
+  if(ses.unitId!==null){if(!S.unit_progress[ses.unitId])S.unit_progress[ses.unitId]={done:0};S.unit_progress[ses.unitId].done++;}
+  updateStreak();checkBadges(true);save();
+  const goalJustDone=S.daily.done>=S.daily.goal&&prevDone<S.daily.goal;
+  if(acc===100||goalJustDone)setTimeout(launchConfetti,400);
+  document.getElementById("r-xp").textContent="+"+ses.xp;
+  document.getElementById("r-cor").textContent=ses.correct+"/"+tot;
+  document.getElementById("r-acc").textContent=acc+"%";
+  const gemTypes=["ruby","amethyst","sapphire","emerald","topaz","diamond","coral","ice"];
+  const resGemType=acc>=90?"diamond":acc>=70?"topaz":acc>=50?"amethyst":"ruby";
+  let rt="¡Gut gemacht!",rs="Has completado la ronda.";
+  if(acc>=90){rt="¡Ausgezeichnet!";rs="¡Casi perfecto! ¡Sigue así!";}
+  else if(acc>=70){rt="¡Sehr gut!";rs="¡Buen trabajo!";}
+  else if(acc<40){rt="¡Weiter üben!";rs="¡Con práctica mejora!";}
+  const resGemEl=document.getElementById("res-gem-el");
+  if(resGemEl)resGemEl.innerHTML=gemSVG(resGemType,88);
+  document.getElementById("rt").textContent=rt;
+  document.getElementById("rsub").textContent=rs;
+  // Adaptive tip
+  const tip=getAdaptiveTip();
+  const tipEl=document.getElementById("res-tip");
+  if(tip&&tipEl){tipEl.innerHTML=tip;tipEl.style.display="block";}
+  else if(tipEl){tipEl.style.display="none";}
+  showScreen("result");
+}
+function playAgain(){if(ses.mode==="unit"&&ses.unitId!==null)startUnit(ses.unitId);else showScreen("home");}
+function confirmExit(){if(confirm("¿Salir del ejercicio?"))showScreen("home");}
+const BADGES=[
+  {id:"start",nm:"Primer paso",gemType:"ruby",c:s=>s.exercises_done>=1},
+  {id:"str3",nm:"3 días seguidos",gemType:"coral",c:s=>s.streak>=3},
+  {id:"str7",nm:"Una semana",gemType:"topaz",c:s=>s.streak>=7},
+  {id:"str14",nm:"Dos semanas",gemType:"topaz",c:s=>s.streak>=14},
+  {id:"str30",nm:"Un mes",gemType:"diamond",c:s=>s.streak>=30},
+  {id:"xp50",nm:"50 XP",gemType:"sapphire",c:s=>s.xp>=50},
+  {id:"xp100",nm:"100 XP",gemType:"amethyst",c:s=>s.xp>=100},
+  {id:"xp500",nm:"500 XP",gemType:"emerald",c:s=>s.xp>=500},
+  {id:"xp1000",nm:"1000 XP",gemType:"topaz",c:s=>s.xp>=1000},
+  {id:"xp2500",nm:"2500 XP",gemType:"diamond",c:s=>s.xp>=2500},
+  {id:"u3",nm:"Comida (U3)",gemType:"emerald",c:s=>(s.unit_progress[3]?.done||0)>=1},
+  {id:"u5",nm:"Trabajo (U5)",gemType:"diamond",c:s=>(s.unit_progress[5]?.done||0)>=1},
+  {id:"u7",nm:"Viajes (U7)",gemType:"ice",c:s=>(s.unit_progress[7]?.done||0)>=1},
+  {id:"u8",nm:"Salud (U8)",gemType:"emerald",c:s=>(s.unit_progress[8]?.done||0)>=1},
+  {id:"perfect",nm:"Ronda perfecta",gemType:"diamond",c:s=>s.perfect_rounds>=1},
+  {id:"dialog",nm:"Primer diálogo",gemType:"sapphire",c:s=>(s.mode_counts?.dialog||0)>=1},
+  {id:"orden",nm:"Maestro del orden",gemType:"coral",c:s=>(s.mode_counts?.orden||0)>=3},
+  {id:"konjug",nm:"Fan de gramática",gemType:"amethyst",c:s=>(s.mode_counts?.konjug||0)>=3},
+  {id:"review",nm:"Repasador",gemType:"ruby",c:s=>(s.mode_counts?.review||0)>=5},
+  {id:"vet",nm:"50 ejercicios",gemType:"topaz",c:s=>s.exercises_done>=50},
+  {id:"master",nm:"100 ejercicios",gemType:"diamond",c:s=>s.exercises_done>=100}
+];
+let _pendingToast=[];
+function checkBadges(animate=false){BADGES.forEach(b=>{if(!S.badges.includes(b.id)&&b.c(S)){S.badges.push(b.id);if(animate)_pendingToast.push(b);}});if(animate&&_pendingToast.length)setTimeout(()=>showBadgeToast(_pendingToast.shift()),600);}
+function showBadgeToast(badge){
+  const gemEl=document.getElementById("bt-gem-el");
+  if(gemEl)gemEl.innerHTML=gemSVG(badge.gemType||"amethyst",36);
+  document.getElementById("bt-name").textContent=badge.nm;
+  const t=document.getElementById("badge-toast");t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),3200);
+  if(_pendingToast.length)setTimeout(()=>showBadgeToast(_pendingToast.shift()),3600);
+}
+function renderProfile(){
+  const nm=S.nickname||"Jugador";
+  document.getElementById("pav").textContent=nm.slice(0,2).toUpperCase();
+  document.getElementById("pnm").textContent=nm;
+  const lv=Math.floor(S.xp/200)+1;
+  const lvls=["Anfänger","Lernender","Fortgeschrittener","Experte","Meister"];
+  document.getElementById("plvl").textContent="Nivel "+lv+" — "+lvls[Math.min(lv-1,lvls.length-1)];
+  document.getElementById("ps-xp").textContent=S.xp;document.getElementById("ps-str").textContent=S.streak;document.getElementById("ps-ex").textContent=S.exercises_done;
+  checkBadges();
+  const g=document.getElementById("bgrid");g.innerHTML="";
+  BADGES.forEach(b=>{
+    const earned=S.badges.includes(b.id);
+    const d=document.createElement("div");d.className="bitem"+(earned?" earned":" locked");
+    const gemW=document.createElement("div");gemW.className="bi-gem";gemW.innerHTML=gemSVG(b.gemType||"amethyst",28);
+    d.appendChild(gemW);
+    const nm=document.createElement("div");nm.className="bn";nm.textContent=b.nm;d.appendChild(nm);
+    g.appendChild(d);
+  });
+  renderWeeklyReport();
+}
+function trackAnswer(ex,ok){
+  const today=new Date().toDateString();
+  if(ex.vocab){const key=ex.vocab.de;if(!S.word_stats[key])S.word_stats[key]={correct:0,wrong:0,lastSeen:today,weight:1.0};const ws=S.word_stats[key];if(ok)ws.correct++;else ws.wrong++;ws.lastSeen=today;ws.weight=ok?Math.max(0.2,ws.weight*.75):Math.min(5.0,ws.weight*1.6+0.5);}
+  // Track topic stats
+  if(ses.topicId){
+    if(!S.topic_stats)S.topic_stats={};
+    if(!S.topic_stats[ses.topicId])S.topic_stats[ses.topicId]={correct:0,wrong:0};
+    if(ok)S.topic_stats[ses.topicId].correct++;else S.topic_stats[ses.topicId].wrong++;
+  }
+  const week=getWeekKey();if(!S.weekly_log[week])S.weekly_log[week]={correct:0,wrong:0,topics:{}};
+  if(ok)S.weekly_log[week].correct++;else S.weekly_log[week].wrong++;
+  const logKey=ses.mode+(ses.topicId?"_"+ses.topicId:"_u"+(ses.unitId||0));
+  if(!S.weekly_log[week].topics[logKey])S.weekly_log[week].topics[logKey]={correct:0,wrong:0};
+  if(ok)S.weekly_log[week].topics[logKey].correct++;else S.weekly_log[week].topics[logKey].wrong++;
+}
+function getAdaptiveTip(){
+  const hardWords=Object.entries(S.word_stats).filter(([,s])=>s.weight>1.5).sort((a,b)=>b[1].weight-a[1].weight).slice(0,3).map(([w])=>w);
+  const weakTopics=Object.entries(S.topic_stats||{}).filter(([,s])=>s.correct+s.wrong>=3).map(([k,s])=>({k,rate:s.correct/(s.correct+s.wrong)})).filter(t=>t.rate<0.65).sort((a,b)=>a.rate-b.rate).slice(0,2);
+  if(weakTopics.length){const label=weakTopics[0].k.replace(/_/g," ");return`💡 Tu punto débil: <strong>${label}</strong> (${Math.round(weakTopics[0].rate*100)}% correcto) — practica este tema para mejorar.`;}
+  if(hardWords.length)return`🎯 Palabras difíciles: <strong>${hardWords.join(", ")}</strong> — aparecerán más seguido.`;
+  return null;
+}
+function getErrorProfileSummary(){const hard=Object.entries(S.word_stats).filter(([,s])=>s.weight>1.5).sort((a,b)=>b[1].weight-a[1].weight).slice(0,5).map(([w])=>w);return hard.length?"Palabras difíciles: "+hard.join(", "):"";}
+function getWeekKey(){const d=new Date();const start=new Date(d.getFullYear(),0,1);const week=Math.ceil(((d-start)/86400000+start.getDay()+1)/7);return d.getFullYear()+"-W"+String(week).padStart(2,"0");}
+function renderWeeklyReport(){
+  const old=document.getElementById("weekly-report");if(old)old.remove();
+  const week=getWeekKey();const log=S.weekly_log[week]||{correct:0,wrong:0,topics:{}};
+  const total=log.correct+log.wrong;if(!total)return;
+  const acc=Math.round(log.correct/total*100);
+  const hardWords=Object.entries(S.word_stats).filter(([,s])=>s.weight>1.8&&s.wrong>0).sort((a,b)=>b[1].weight-a[1].weight).slice(0,5);
+  const hardHTML=hardWords.map(([w,s])=>{let es="";UNITS.forEach(u=>{const f=u.vocab.find(v=>v.de===w);if(f)es=f.es;});const pct=Math.round(s.correct/(s.correct+s.wrong)*100);return`<div style="display:flex;justify-content:space-between;padding:.32rem 0;border-bottom:1px solid rgba(255,255,255,.05)"><div><span style="font-size:.85rem;font-weight:800;color:var(--topaz)">${w}</span>${es?`<span style="font-size:.75rem;color:var(--txt2);margin-left:.4rem">${es}</span>`:""}</div><span style="font-size:.78rem;color:var(--ruby);font-weight:800">${pct}% ✓</span></div>`;}).join("");
+  const container=document.createElement("div");container.id="weekly-report";container.style.cssText="padding:0 1rem 1.5rem;";
+  container.innerHTML=`<div style="font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--txt3);margin-bottom:.6rem">📊 Informe semanal</div><div style="background:var(--panel);border-radius:var(--r2);padding:.95rem;border:1px solid var(--border);margin-bottom:.65rem"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:1.05rem;font-weight:900;color:var(--topaz)">${total} respuestas</div><div style="font-size:.75rem;color:var(--txt2)">esta semana</div></div><div style="font-family:'Cinzel',serif;font-size:1.7rem;color:${acc>=70?"var(--topaz)":"var(--ruby)"}">${acc}%</div></div><div style="height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;margin:.5rem 0"><div style="width:${acc}%;height:100%;background:linear-gradient(90deg,var(--ruby),var(--topaz));border-radius:3px"></div></div><div style="display:flex;gap:.5rem"><span style="font-size:.73rem;color:var(--emerald)">✅ ${log.correct}</span><span style="font-size:.73rem;color:var(--ruby)">❌ ${log.wrong}</span></div></div>${hardWords.length?`<div style="background:var(--panel);border-radius:var(--r2);padding:.95rem;border:1px solid rgba(255,45,85,.2)"><div style="font-size:.73rem;font-weight:800;color:var(--ruby);margin-bottom:.4rem">🎯 Puntos débiles</div>${hardHTML}<button onclick="startReview()" style="width:100%;margin-top:.7rem;padding:.6rem;border-radius:var(--r);background:rgba(255,45,85,.1);border:1px solid rgba(255,45,85,.3);color:var(--ruby);font-family:'Exo 2',sans-serif;font-size:.82rem;font-weight:800;cursor:pointer">Repasar ahora →</button></div>`:""}`;
+  const ph=document.getElementById("weekly-report-ph");if(ph)ph.parentNode.insertBefore(container,ph);
+}
+function triggerGemEffect(){
+  const fx=document.getElementById("gem-fx");const cols=[...GEM_COLORS];shuffle(cols);
+  for(let i=0;i<8;i++){const s=document.createElement("div");const angle=Math.random()*360;const dist=60+Math.random()*80;const tx=Math.cos(angle*Math.PI/180)*dist;const ty=Math.sin(angle*Math.PI/180)*dist;const rot=(Math.random()-.5)*360;s.style.cssText=`position:absolute;width:8px;height:8px;border-radius:2px;left:50%;top:50%;background:${cols[i%cols.length]};--tx:${tx}px;--ty:${ty}px;--tr:${rot}deg;animation:shard .6s ease-out forwards;`;fx.appendChild(s);setTimeout(()=>s.remove(),700);}
+  const xpF=document.createElement("div");xpF.style.cssText="position:absolute;left:50%;top:40%;font-family:'Exo 2',sans-serif;font-weight:900;font-size:1.4rem;color:var(--topaz);animation:float-up .8s ease-out forwards;pointer-events:none;";xpF.textContent="+10 XP";fx.appendChild(xpF);setTimeout(()=>xpF.remove(),900);
+}
+function animateXP(el,from,to){if(!el)return;const steps=12,step=(to-from)/steps;let cur=from;const tick=()=>{cur=Math.min(to,cur+step);el.textContent=Math.round(cur)+" XP";if(cur<to)requestAnimationFrame(tick);};requestAnimationFrame(tick);}
+function launchConfetti(){
+  const c=document.getElementById("confetti-canvas");c.style.display="block";c.width=window.innerWidth;c.height=window.innerHeight;const ctx=c.getContext("2d");
+  const pieces=Array.from({length:90},()=>({x:Math.random()*c.width,y:-10-Math.random()*80,r:3+Math.random()*5,d:2+Math.random()*3,col:GEM_COLORS[Math.floor(Math.random()*GEM_COLORS.length)],t:Math.random()*Math.PI*2,ts:.04+Math.random()*.06}));
+  let frame=0;(function draw(){ctx.clearRect(0,0,c.width,c.height);pieces.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.col;ctx.fill();p.y+=p.d;p.t+=p.ts;p.x+=Math.sin(p.t)*2.5;});frame++;if(frame<150)requestAnimationFrame(draw);else{ctx.clearRect(0,0,c.width,c.height);c.style.display="none";}})();
+}
+let _tx=0;
+document.addEventListener("touchstart",e=>{_tx=e.touches[0].clientX;},{passive:true});
+document.addEventListener("touchend",e=>{if(e.changedTouches[0].clientX-_tx<-60&&document.getElementById("screen-exercise").classList.contains("active")){const n=document.getElementById("bnxt");if(n&&n.style.display!=="none")nextEx();}},{passive:true});
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+</script>
+</body>
+</html>
